@@ -8,11 +8,32 @@ import {
   FileText, 
   MoreVertical,
   Star,
-  Clock
+  Clock,
+  Trash2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
-const notes = [
+interface Note {
+  id: number;
+  title: string;
+  preview: string;
+  updated: string;
+  starred: boolean;
+  tags: string[];
+}
+
+const initialNotes: Note[] = [
   {
     id: 1,
     title: "Q4 Marketing Strategy",
@@ -77,13 +98,71 @@ const tagColors: Record<string, string> = {
 };
 
 export default function Notes() {
+  const { toast } = useToast();
+  const [notes, setNotes] = useState<Note[]>(initialNotes);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newNote, setNewNote] = useState({ title: "", content: "" });
+
+  const filteredNotes = notes
+    .filter(note => showStarredOnly ? note.starred : true)
+    .filter(note => 
+      note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      note.preview.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+  const toggleStar = (noteId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNotes(prev => prev.map(note => 
+      note.id === noteId ? { ...note, starred: !note.starred } : note
+    ));
+    const note = notes.find(n => n.id === noteId);
+    toast({ 
+      title: note?.starred ? "Removed from starred" : "Added to starred",
+      description: note?.title
+    });
+  };
+
+  const deleteNote = (noteId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const note = notes.find(n => n.id === noteId);
+    setNotes(prev => prev.filter(n => n.id !== noteId));
+    toast({ title: "Note deleted", description: note?.title });
+  };
+
+  const createNote = () => {
+    if (!newNote.title.trim()) {
+      toast({ title: "Error", description: "Please enter a note title", variant: "destructive" });
+      return;
+    }
+    
+    const note: Note = {
+      id: Date.now(),
+      title: newNote.title,
+      preview: newNote.content || "No content yet...",
+      updated: "Just now",
+      starred: false,
+      tags: ["notes"]
+    };
+    
+    setNotes(prev => [note, ...prev]);
+    setNewNote({ title: "", content: "" });
+    setIsDialogOpen(false);
+    toast({ title: "Note created", description: note.title });
+  };
+
+  const openNote = (note: Note) => {
+    toast({ title: "Opening note", description: note.title });
+  };
+
   return (
     <AppLayout>
       <AppHeader 
         title="Notes" 
         subtitle="Capture and organize your ideas"
         action={
-          <Button variant="hero" size="sm">
+          <Button variant="hero" size="sm" onClick={() => setIsDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-1" />
             New Note
           </Button>
@@ -98,23 +177,30 @@ export default function Notes() {
             <input
               type="text"
               placeholder="Search notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 bg-transparent border-none outline-none text-sm"
             />
           </div>
-          <Button variant="outline" size="sm">
-            <Star className="w-4 h-4 mr-1" />
-            Starred
+          <Button 
+            variant={showStarredOnly ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setShowStarredOnly(!showStarredOnly)}
+          >
+            <Star className={cn("w-4 h-4 mr-1", showStarredOnly && "fill-current")} />
+            Starred ({notes.filter(n => n.starred).length})
           </Button>
         </div>
 
         {/* Notes Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {notes.map((note, index) => (
+          {filteredNotes.map((note, index) => (
             <Card 
               key={note.id} 
               variant="interactive"
-              className="animate-fade-up group"
+              className="animate-fade-up group cursor-pointer"
               style={{ animationDelay: `${index * 50}ms` }}
+              onClick={() => openNote(note)}
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-2">
@@ -130,11 +216,17 @@ export default function Notes() {
                         "w-7 h-7",
                         note.starred ? "text-warning" : "opacity-0 group-hover:opacity-100"
                       )}
+                      onClick={(e) => toggleStar(note.id, e)}
                     >
                       <Star className={cn("w-4 h-4", note.starred && "fill-current")} />
                     </Button>
-                    <Button variant="ghost" size="icon" className="w-7 h-7 opacity-0 group-hover:opacity-100">
-                      <MoreVertical className="w-4 h-4" />
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="w-7 h-7 opacity-0 group-hover:opacity-100"
+                      onClick={(e) => deleteNote(note.id, e)}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
                   </div>
                 </div>
@@ -166,7 +258,54 @@ export default function Notes() {
             </Card>
           ))}
         </div>
+
+        {filteredNotes.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>{searchQuery || showStarredOnly ? "No matching notes found" : "No notes yet"}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-4"
+              onClick={() => setIsDialogOpen(true)}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Create your first note
+            </Button>
+          </div>
+        )}
       </div>
+
+      {/* Create Note Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Note</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="noteTitle">Title</Label>
+              <Input 
+                id="noteTitle" 
+                placeholder="Note title..."
+                value={newNote.title}
+                onChange={(e) => setNewNote(prev => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="noteContent">Content</Label>
+              <Textarea 
+                id="noteContent" 
+                placeholder="Start writing..."
+                rows={5}
+                value={newNote.content}
+                onChange={(e) => setNewNote(prev => ({ ...prev, content: e.target.value }))}
+              />
+            </div>
+            <Button className="w-full" onClick={createNote}>Create Note</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

@@ -13,11 +13,14 @@ import {
   Clock,
   Users
 } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
-const todayTasks = [
-  { id: 1, title: "Review Q4 marketing strategy", priority: "high", time: "10:00 AM" },
-  { id: 2, title: "Team standup meeting", priority: "medium", time: "11:00 AM" },
-  { id: 3, title: "Update product roadmap", priority: "low", time: "2:00 PM" },
+const initialTasks = [
+  { id: 1, title: "Review Q4 marketing strategy", priority: "high", time: "10:00 AM", completed: false },
+  { id: 2, title: "Team standup meeting", priority: "medium", time: "11:00 AM", completed: false },
+  { id: 3, title: "Update product roadmap", priority: "low", time: "2:00 PM", completed: false },
 ];
 
 const upcomingEvents = [
@@ -31,6 +34,30 @@ const recentMessages = [
 ];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [tasks, setTasks] = useState(initialTasks);
+  const completedCount = tasks.filter(t => t.completed).length;
+
+  const toggleTask = (taskId: number) => {
+    setTasks(prev => prev.map(task => 
+      task.id === taskId ? { ...task, completed: !task.completed } : task
+    ));
+    const task = tasks.find(t => t.id === taskId);
+    toast({
+      title: task?.completed ? "Task uncompleted" : "Task completed!",
+      description: task?.title,
+    });
+  };
+
+  const viewFullSummary = () => {
+    toast({
+      title: "AI Summary",
+      description: "Opening full daily summary...",
+    });
+    navigate("/ai-assistant");
+  };
+
   return (
     <AppLayout>
       <AppHeader 
@@ -41,12 +68,16 @@ export default function Dashboard() {
       <div className="p-6 space-y-6">
         {/* Stats Grid */}
         <div className="grid md:grid-cols-4 gap-4">
-          <Card variant="elevated" className="animate-fade-up">
+          <Card 
+            variant="elevated" 
+            className="animate-fade-up cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={() => navigate("/tasks")}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Tasks Due Today</p>
-                  <p className="text-2xl font-bold">8</p>
+                  <p className="text-2xl font-bold">{tasks.length}</p>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <CheckSquare className="w-5 h-5 text-primary" />
@@ -54,12 +85,16 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center gap-1 mt-2 text-sm text-success">
                 <TrendingUp className="w-3 h-3" />
-                <span>3 completed</span>
+                <span>{completedCount} completed</span>
               </div>
             </CardContent>
           </Card>
           
-          <Card variant="elevated" className="animate-fade-up animation-delay-100">
+          <Card 
+            variant="elevated" 
+            className="animate-fade-up animation-delay-100 cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={() => navigate("/calendar")}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -77,7 +112,11 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           
-          <Card variant="elevated" className="animate-fade-up animation-delay-200">
+          <Card 
+            variant="elevated" 
+            className="animate-fade-up animation-delay-200 cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={() => navigate("/messaging")}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -95,7 +134,11 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           
-          <Card variant="elevated" className="animate-fade-up animation-delay-300">
+          <Card 
+            variant="elevated" 
+            className="animate-fade-up animation-delay-300 cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={() => navigate("/ai-assistant")}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -126,12 +169,12 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Today you have <span className="text-foreground font-medium">8 tasks</span> due and{" "}
+              Today you have <span className="text-foreground font-medium">{tasks.length} tasks</span> due and{" "}
               <span className="text-foreground font-medium">4 meetings</span> scheduled. 
               The design team shared new mockups in #design that need your review. 
               Consider prioritizing the Q4 marketing strategy review before your 11 AM standup.
             </p>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={viewFullSummary}>
               View Full Summary
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
@@ -144,14 +187,26 @@ export default function Dashboard() {
           <Card className="animate-fade-up animation-delay-500">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Today's Tasks</CardTitle>
-              <Button variant="ghost" size="sm">View All</Button>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/tasks")}>View All</Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              {todayTasks.map((task) => (
-                <div key={task.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                  <input type="checkbox" className="w-4 h-4 rounded border-border" />
+              {tasks.map((task) => (
+                <div 
+                  key={task.id} 
+                  className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
+                  onClick={() => toggleTask(task.id)}
+                >
+                  <input 
+                    type="checkbox" 
+                    checked={task.completed}
+                    onChange={() => toggleTask(task.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-4 h-4 rounded border-border cursor-pointer" 
+                  />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{task.title}</p>
+                    <p className={`text-sm font-medium truncate ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                      {task.title}
+                    </p>
                     <p className="text-xs text-muted-foreground">{task.time}</p>
                   </div>
                   <Badge 
@@ -171,11 +226,18 @@ export default function Dashboard() {
           <Card className="animate-fade-up animation-delay-600">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Upcoming Events</CardTitle>
-              <Button variant="ghost" size="sm">View All</Button>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/calendar")}>View All</Button>
             </CardHeader>
             <CardContent className="space-y-3">
               {upcomingEvents.map((event) => (
-                <div key={event.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                <div 
+                  key={event.id} 
+                  className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
+                  onClick={() => {
+                    toast({ title: "Event Details", description: `Opening ${event.title}...` });
+                    navigate("/calendar");
+                  }}
+                >
                   <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
                     <Calendar className="w-5 h-5 text-accent" />
                   </div>
@@ -196,11 +258,18 @@ export default function Dashboard() {
           <Card className="animate-fade-up animation-delay-700">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Recent Messages</CardTitle>
-              <Button variant="ghost" size="sm">View All</Button>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/messaging")}>View All</Button>
             </CardHeader>
             <CardContent className="space-y-3">
               {recentMessages.map((msg) => (
-                <div key={msg.id} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer">
+                <div 
+                  key={msg.id} 
+                  className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
+                  onClick={() => {
+                    toast({ title: "Opening Channel", description: msg.channel });
+                    navigate("/messaging");
+                  }}
+                >
                   <div className="w-8 h-8 rounded-full bg-info/10 flex items-center justify-center flex-shrink-0">
                     <MessageSquare className="w-4 h-4 text-info" />
                   </div>

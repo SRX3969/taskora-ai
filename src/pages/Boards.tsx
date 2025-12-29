@@ -1,13 +1,36 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AppHeader } from "@/components/layout/AppHeader";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, MoreHorizontal, GripVertical } from "lucide-react";
+import { Plus, MoreHorizontal, GripVertical, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-const columns = [
+interface BoardCard {
+  id: number;
+  title: string;
+  tags: string[];
+  assignee: string;
+}
+
+interface Column {
+  id: string;
+  title: string;
+  color: string;
+  cards: BoardCard[];
+}
+
+const initialColumns: Column[] = [
   {
     id: "backlog",
     title: "Backlog",
@@ -66,13 +89,94 @@ const tagColors: Record<string, string> = {
 };
 
 export default function Boards() {
+  const { toast } = useToast();
+  const [columns, setColumns] = useState<Column[]>(initialColumns);
+  const [isCardDialogOpen, setIsCardDialogOpen] = useState(false);
+  const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+  const [newCardTitle, setNewCardTitle] = useState("");
+  const [newColumnTitle, setNewColumnTitle] = useState("");
+
+  const addCard = () => {
+    if (!newCardTitle.trim() || !activeColumnId) return;
+    
+    const newCard: BoardCard = {
+      id: Date.now(),
+      title: newCardTitle,
+      tags: ["design"],
+      assignee: "alex"
+    };
+    
+    setColumns(prev => prev.map(col => 
+      col.id === activeColumnId 
+        ? { ...col, cards: [...col.cards, newCard] }
+        : col
+    ));
+    
+    setNewCardTitle("");
+    setIsCardDialogOpen(false);
+    toast({ title: "Card added", description: newCardTitle });
+  };
+
+  const addColumn = () => {
+    if (!newColumnTitle.trim()) return;
+    
+    const newColumn: Column = {
+      id: `column-${Date.now()}`,
+      title: newColumnTitle,
+      color: "bg-muted-foreground",
+      cards: []
+    };
+    
+    setColumns(prev => [...prev, newColumn]);
+    setNewColumnTitle("");
+    setIsColumnDialogOpen(false);
+    toast({ title: "Column added", description: newColumnTitle });
+  };
+
+  const deleteCard = (columnId: string, cardId: number) => {
+    setColumns(prev => prev.map(col => 
+      col.id === columnId 
+        ? { ...col, cards: col.cards.filter(c => c.id !== cardId) }
+        : col
+    ));
+    toast({ title: "Card deleted" });
+  };
+
+  const moveCard = (cardId: number, fromColumnId: string, direction: 'left' | 'right') => {
+    const fromIndex = columns.findIndex(c => c.id === fromColumnId);
+    const toIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
+    
+    if (toIndex < 0 || toIndex >= columns.length) return;
+    
+    const card = columns[fromIndex].cards.find(c => c.id === cardId);
+    if (!card) return;
+    
+    setColumns(prev => prev.map((col, idx) => {
+      if (idx === fromIndex) {
+        return { ...col, cards: col.cards.filter(c => c.id !== cardId) };
+      }
+      if (idx === toIndex) {
+        return { ...col, cards: [...col.cards, card] };
+      }
+      return col;
+    }));
+    
+    toast({ title: "Card moved", description: `Moved to ${columns[toIndex].title}` });
+  };
+
+  const openAddCard = (columnId: string) => {
+    setActiveColumnId(columnId);
+    setIsCardDialogOpen(true);
+  };
+
   return (
     <AppLayout>
       <AppHeader 
         title="Boards" 
         subtitle="Product Development Sprint 12"
         action={
-          <Button variant="hero" size="sm">
+          <Button variant="hero" size="sm" onClick={() => setIsCardDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-1" />
             Add Card
           </Button>
@@ -114,7 +218,17 @@ export default function Boards() {
                       <div className="flex items-start gap-2">
                         <GripVertical className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity cursor-grab" />
                         <div className="flex-1">
-                          <p className="text-sm font-medium mb-2">{card.title}</p>
+                          <div className="flex items-start justify-between">
+                            <p className="text-sm font-medium mb-2">{card.title}</p>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="w-6 h-6 opacity-0 group-hover:opacity-100 -mt-1 -mr-1"
+                              onClick={() => deleteCard(column.id, card.id)}
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
                           <div className="flex items-center justify-between">
                             <div className="flex gap-1 flex-wrap">
                               {card.tags.map((tag) => (
@@ -134,6 +248,29 @@ export default function Boards() {
                               <AvatarFallback>{card.assignee[0].toUpperCase()}</AvatarFallback>
                             </Avatar>
                           </div>
+                          {/* Move buttons */}
+                          <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {colIdx > 0 && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-6 text-xs px-2"
+                                onClick={() => moveCard(card.id, column.id, 'left')}
+                              >
+                                ← {columns[colIdx - 1].title}
+                              </Button>
+                            )}
+                            {colIdx < columns.length - 1 && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-6 text-xs px-2"
+                                onClick={() => moveCard(card.id, column.id, 'right')}
+                              >
+                                {columns[colIdx + 1].title} →
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -144,6 +281,7 @@ export default function Boards() {
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start text-muted-foreground hover:text-foreground"
+                  onClick={() => openAddCard(column.id)}
                 >
                   <Plus className="w-4 h-4 mr-1" />
                   Add card
@@ -157,6 +295,7 @@ export default function Boards() {
             <Button 
               variant="outline" 
               className="w-full h-10 border-dashed"
+              onClick={() => setIsColumnDialogOpen(true)}
             >
               <Plus className="w-4 h-4 mr-1" />
               Add Column
@@ -164,6 +303,71 @@ export default function Boards() {
           </div>
         </div>
       </div>
+
+      {/* Add Card Dialog */}
+      <Dialog open={isCardDialogOpen} onOpenChange={setIsCardDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Card</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="cardTitle">Card Title</Label>
+              <Input 
+                id="cardTitle" 
+                placeholder="Enter card title..."
+                value={newCardTitle}
+                onChange={(e) => setNewCardTitle(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && addCard()}
+              />
+            </div>
+            {!activeColumnId && (
+              <div className="space-y-2">
+                <Label>Select Column</Label>
+                <div className="flex flex-wrap gap-2">
+                  {columns.map(col => (
+                    <Button
+                      key={col.id}
+                      variant={activeColumnId === col.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setActiveColumnId(col.id)}
+                    >
+                      {col.title}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <Button className="w-full" onClick={addCard} disabled={!newCardTitle.trim() || !activeColumnId}>
+              Add Card
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Column Dialog */}
+      <Dialog open={isColumnDialogOpen} onOpenChange={setIsColumnDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Column</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="columnTitle">Column Title</Label>
+              <Input 
+                id="columnTitle" 
+                placeholder="Enter column title..."
+                value={newColumnTitle}
+                onChange={(e) => setNewColumnTitle(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && addColumn()}
+              />
+            </div>
+            <Button className="w-full" onClick={addColumn} disabled={!newColumnTitle.trim()}>
+              Add Column
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
