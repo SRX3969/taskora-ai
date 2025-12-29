@@ -1,5 +1,4 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
@@ -14,7 +13,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   role: "user" | "assistant";
@@ -22,32 +20,47 @@ interface Message {
 }
 
 const suggestions = [
-  { icon: Sparkles, text: "Summarize today's activity" },
-  { icon: FileText, text: "What are my pending tasks?" },
-  { icon: Calendar, text: "What meetings do I have this week?" },
-  { icon: MessageSquare, text: "Summarize unread messages" },
+  { icon: Sparkles, text: "How can you help me?" },
+  { icon: FileText, text: "What features do you have?" },
+  { icon: Calendar, text: "Help me plan my day" },
+  { icon: MessageSquare, text: "Tips for staying productive" },
 ];
-
-const initialConversation: Message[] = [
-  {
-    role: "assistant",
-    content: "Hello! I'm your AI assistant. I can help you with tasks, summarize meetings, find information across your workspace, and much more. What would you like to know?"
-  }
-];
-
-const aiResponses: Record<string, string> = {
-  "schedule": "Based on your calendar, here's your schedule for today:\n\n**10:00 AM** - Design Review (1 hour)\n• Attendees: Sarah, Jordan, Alex\n\n**11:00 AM** - Team Standup (30 min)\n• Daily sync with the engineering team\n\n**2:00 PM** - Sprint Planning (2 hours)\n\nYou have 3 hours of focus time available. Would you like me to suggest tasks to prioritize?",
-  "tasks": "You have **8 pending tasks**:\n\n**High Priority:**\n• Review Q4 marketing strategy (Due today)\n• Fix dashboard loading issue (Due today)\n\n**Medium Priority:**\n• Update product roadmap (Due tomorrow)\n• Write API documentation (Due Friday)\n\n**Low Priority:**\n• Prepare team demo (Due Friday)\n\nWould you like me to help you prioritize these?",
-  "messages": "Here's a summary of your unread messages:\n\n**#design (3 unread)**\n• Sarah shared new dashboard mockups and is waiting for feedback\n\n**#engineering (12 unread)**\n• The deployment was successful\n• Jordan fixed the login bug\n• Discussion about API documentation\n\n**#random (5 unread)**\n• Team lunch plans for Friday\n\nWould you like me to open any of these channels?",
-  "summarize": "Here's your daily summary:\n\n**Completed Today:**\n• 3 tasks finished\n• 2 meetings attended\n\n**In Progress:**\n• Dashboard redesign (in review)\n• Messaging feature (80% complete)\n\n**Key Updates:**\n• Design team needs feedback on mockups\n• Sprint planning at 2 PM\n• 12 unread messages in #engineering\n\n**Suggestions:**\n• Block 1 hour for design review feedback\n• Prioritize Q4 marketing strategy review",
-  "default": "I understand you're asking about that. Let me help you!\n\nBased on your workspace data, I can see relevant information across your tasks, calendar, messages, and notes. Here are some things I can help with:\n\n• **Tasks**: Create, prioritize, or summarize your tasks\n• **Calendar**: Check your schedule or find free time\n• **Messages**: Summarize channel discussions\n• **Notes**: Search or create notes\n\nWhat specifically would you like to know more about?"
-};
 
 export default function AIAssistant() {
-  const { toast } = useToast();
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>(initialConversation);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "assistant",
+      content: "Hello! I'm your AI assistant. I can help you with tasks, summarize meetings, find information across your workspace, and much more. What would you like to know?"
+    }
+  ]);
   const [isTyping, setIsTyping] = useState(false);
+
+  const generateResponse = (userMessage: string): string => {
+    const lowerMessage = userMessage.toLowerCase();
+    
+    if (lowerMessage.includes("help") || lowerMessage.includes("features")) {
+      return "I can help you with:\n\n• **Task Management** - Create, organize, and track your tasks\n• **Calendar** - Schedule events and manage your time\n• **Notes** - Capture and organize your ideas\n• **Messaging** - Communicate with your team\n• **Boards** - Visualize your projects with Kanban boards\n• **Reports** - Track your productivity\n\nWhat would you like to explore?";
+    }
+    
+    if (lowerMessage.includes("plan") || lowerMessage.includes("day") || lowerMessage.includes("schedule")) {
+      return "To plan your day effectively:\n\n1. **Review your tasks** - Check what's due today in the Tasks section\n2. **Block time** - Use the Calendar to schedule focus blocks\n3. **Prioritize** - Focus on high-priority items first\n4. **Take breaks** - Schedule short breaks to stay refreshed\n\nWould you like me to help you create a task or schedule an event?";
+    }
+    
+    if (lowerMessage.includes("productive") || lowerMessage.includes("tips")) {
+      return "Here are some productivity tips:\n\n• **Time blocking** - Dedicate specific hours to specific tasks\n• **2-minute rule** - If it takes less than 2 minutes, do it now\n• **Batch similar tasks** - Group similar activities together\n• **Minimize distractions** - Use focus mode during deep work\n• **Regular reviews** - Check your Reports to understand patterns\n\nWant to start with any of these strategies?";
+    }
+    
+    if (lowerMessage.includes("task")) {
+      return "I can help you with tasks! Here's what you can do:\n\n• Create new tasks with priorities and due dates\n• Track task status (To Do → In Progress → Done)\n• Filter tasks by status or priority\n• View tasks in the Dashboard or Tasks page\n\nHead to the **Tasks** section to get started!";
+    }
+    
+    if (lowerMessage.includes("calendar") || lowerMessage.includes("event") || lowerMessage.includes("meeting")) {
+      return "The Calendar helps you manage your schedule:\n\n• Click any time slot to create an event\n• Choose different colors to categorize events\n• Navigate between weeks using the arrows\n• Switch between day, week, and month views\n\nGo to the **Calendar** to schedule your events!";
+    }
+    
+    return "I understand! Here are some things I can help with:\n\n• **Tasks** - Create and manage your to-do list\n• **Calendar** - Schedule events and meetings\n• **Notes** - Capture your ideas\n• **Boards** - Organize projects visually\n• **Reports** - Track your productivity\n\nTry asking me about any of these, or let me know what specific help you need!";
+  };
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -58,22 +71,9 @@ export default function AIAssistant() {
     setIsTyping(true);
 
     // Simulate AI thinking delay
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+    await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 700));
 
-    // Generate response based on keywords
-    let response = aiResponses.default;
-    const lowerText = text.toLowerCase();
-    
-    if (lowerText.includes("schedule") || lowerText.includes("calendar") || lowerText.includes("meeting")) {
-      response = aiResponses.schedule;
-    } else if (lowerText.includes("task") || lowerText.includes("pending") || lowerText.includes("todo")) {
-      response = aiResponses.tasks;
-    } else if (lowerText.includes("message") || lowerText.includes("unread") || lowerText.includes("channel")) {
-      response = aiResponses.messages;
-    } else if (lowerText.includes("summarize") || lowerText.includes("summary") || lowerText.includes("today")) {
-      response = aiResponses.summarize;
-    }
-
+    const response = generateResponse(text);
     const assistantMessage: Message = { role: "assistant", content: response };
     setMessages(prev => [...prev, assistantMessage]);
     setIsTyping(false);

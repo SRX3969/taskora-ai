@@ -1,7 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { AppHeader } from "@/components/layout/AppHeader";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Hash, 
@@ -11,7 +9,8 @@ import {
   MoreVertical,
   Plus,
   Search,
-  Bot
+  Bot,
+  MessageSquare
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -24,6 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 interface Message {
   id: number;
@@ -39,51 +39,14 @@ interface Channel {
   unread: number;
 }
 
-const initialChannels: Channel[] = [
-  { id: 1, name: "general", unread: 3 },
-  { id: 2, name: "design", unread: 0 },
-  { id: 3, name: "engineering", unread: 12 },
-  { id: 4, name: "marketing", unread: 0 },
-  { id: 5, name: "random", unread: 5 },
-];
-
-const initialMessages: Message[] = [
-  {
-    id: 1,
-    user: { name: "Sarah Chen", avatar: "sarah" },
-    content: "Hey team! Just uploaded the new mockups for the dashboard. Would love your feedback 🎨",
-    time: "10:30 AM",
-    reactions: [{ emoji: "👍", count: 3 }, { emoji: "🔥", count: 2 }]
-  },
-  {
-    id: 2,
-    user: { name: "Alex Morgan", avatar: "alex" },
-    content: "These look amazing! I especially like the new card layout. Quick question - are we going with the gradient headers or solid colors?",
-    time: "10:35 AM",
-    reactions: []
-  },
-  {
-    id: 3,
-    user: { name: "Sarah Chen", avatar: "sarah" },
-    content: "Great question! I'm leaning towards subtle gradients for feature cards and solid colors for stats. What do you think?",
-    time: "10:38 AM",
-    reactions: [{ emoji: "💯", count: 1 }]
-  },
-  {
-    id: 4,
-    user: { name: "Jordan Lee", avatar: "jordan" },
-    content: "Love the direction! The AI summary card at the top is a nice touch. It really emphasizes the AI-first approach we're going for.",
-    time: "10:42 AM",
-    reactions: [{ emoji: "❤️", count: 2 }, { emoji: "✨", count: 1 }]
-  },
-];
-
 export default function Messaging() {
   const { toast } = useToast();
-  const [channels, setChannels] = useState<Channel[]>(initialChannels);
-  const [selectedChannel, setSelectedChannel] = useState("design");
+  const [channels, setChannels] = useState<Channel[]>([
+    { id: 1, name: "general", unread: 0 },
+  ]);
+  const [selectedChannel, setSelectedChannel] = useState("general");
   const [messageInput, setMessageInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isChannelDialogOpen, setIsChannelDialogOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
@@ -160,9 +123,16 @@ export default function Messaging() {
   };
 
   const summarizeChannel = () => {
+    if (messages.length === 0) {
+      toast({ 
+        title: "No messages", 
+        description: "Start a conversation to get AI summaries" 
+      });
+      return;
+    }
     toast({ 
       title: "AI Summary", 
-      description: "The team discussed dashboard mockups. Key points: gradient vs solid colors for headers, AI summary card placement. Feedback was positive overall." 
+      description: `This channel has ${messages.length} messages. Key topics discussed include: ${messages.slice(0, 3).map(m => m.content.slice(0, 20)).join(", ")}...` 
     });
   };
 
@@ -265,39 +235,49 @@ export default function Messaging() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((message) => (
-              <div key={message.id} className="flex gap-3 group hover:bg-secondary/30 p-2 rounded-lg -mx-2 transition-colors">
-                <Avatar className="w-9 h-9">
-                  <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user.avatar}`} />
-                  <AvatarFallback>{message.user.name[0]}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-semibold text-sm">{message.user.name}</span>
-                    <span className="text-xs text-muted-foreground">{message.time}</span>
-                  </div>
-                  <p className="text-sm text-foreground/90 mt-0.5">{message.content}</p>
-                  <div className="flex gap-1 mt-2">
-                    {message.reactions.map((reaction, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => addReaction(message.id, reaction.emoji)}
-                        className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-xs hover:bg-secondary/80 transition-colors"
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <MessageSquare className="w-16 h-16 text-muted-foreground/30 mb-4" />
+                <h3 className="text-lg font-medium mb-2">No messages yet</h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Start the conversation in #{selectedChannel}. Send a message below to get started.
+                </p>
+              </div>
+            ) : (
+              messages.map((message) => (
+                <div key={message.id} className="flex gap-3 group hover:bg-secondary/30 p-2 rounded-lg -mx-2 transition-colors">
+                  <Avatar className="w-9 h-9">
+                    <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user.avatar}`} />
+                    <AvatarFallback>{message.user.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-semibold text-sm">{message.user.name}</span>
+                      <span className="text-xs text-muted-foreground">{message.time}</span>
+                    </div>
+                    <p className="text-sm text-foreground/90 mt-0.5">{message.content}</p>
+                    <div className="flex gap-1 mt-2">
+                      {message.reactions.map((reaction, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => addReaction(message.id, reaction.emoji)}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-xs hover:bg-secondary/80 transition-colors"
+                        >
+                          {reaction.emoji}
+                          <span className="text-muted-foreground">{reaction.count}</span>
+                        </button>
+                      ))}
+                      <button 
+                        onClick={() => addReaction(message.id, "👍")}
+                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/50 text-xs hover:bg-secondary transition-all"
                       >
-                        {reaction.emoji}
-                        <span className="text-muted-foreground">{reaction.count}</span>
+                        <Smile className="w-3 h-3" />
                       </button>
-                    ))}
-                    <button 
-                      onClick={() => addReaction(message.id, "👍")}
-                      className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/50 text-xs hover:bg-secondary transition-all"
-                    >
-                      <Smile className="w-3 h-3" />
-                    </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           {/* Message Input */}

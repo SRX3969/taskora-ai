@@ -36,54 +36,6 @@ interface Task {
   assignee: { name: string; avatar: string };
 }
 
-const initialTasks: Task[] = [
-  {
-    id: 1,
-    title: "Review Q4 marketing strategy",
-    description: "Go through the presentation and provide feedback",
-    status: "in-progress",
-    priority: "high",
-    dueDate: "Today",
-    assignee: { name: "Alex", avatar: "alex" }
-  },
-  {
-    id: 2,
-    title: "Update product roadmap",
-    description: "Add new features from last sprint planning",
-    status: "todo",
-    priority: "medium",
-    dueDate: "Tomorrow",
-    assignee: { name: "Sarah", avatar: "sarah" }
-  },
-  {
-    id: 3,
-    title: "Fix dashboard loading issue",
-    description: "Investigate slow loading times on the main dashboard",
-    status: "in-progress",
-    priority: "high",
-    dueDate: "Today",
-    assignee: { name: "Jordan", avatar: "jordan" }
-  },
-  {
-    id: 4,
-    title: "Prepare team demo",
-    description: "Create slides for the weekly team demo",
-    status: "todo",
-    priority: "low",
-    dueDate: "Friday",
-    assignee: { name: "Alex", avatar: "alex" }
-  },
-  {
-    id: 5,
-    title: "Write API documentation",
-    description: "Document new endpoints for the messaging feature",
-    status: "done",
-    priority: "medium",
-    dueDate: "Yesterday",
-    assignee: { name: "Sarah", avatar: "sarah" }
-  },
-];
-
 const statusConfig = {
   "todo": { label: "To Do", color: "bg-muted", icon: Circle },
   "in-progress": { label: "In Progress", color: "bg-info", icon: Clock },
@@ -98,7 +50,7 @@ const priorityConfig = {
 
 export default function Tasks() {
   const { toast } = useToast();
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newTask, setNewTask] = useState<{ title: string; description: string; priority: "high" | "medium" | "low" }>({ title: "", description: "", priority: "medium" });
@@ -135,7 +87,7 @@ export default function Tasks() {
       status: "todo",
       priority: newTask.priority,
       dueDate: "Today",
-      assignee: { name: "Alex", avatar: "alex" }
+      assignee: { name: "You", avatar: "user" }
     };
     
     setTasks(prev => [task, ...prev]);
@@ -310,11 +262,11 @@ export default function Tasks() {
           {filteredTasks.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <CheckCircle2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No tasks found</p>
+              <p className="mb-2">{filter ? "No tasks match this filter" : "No tasks yet"}</p>
+              <p className="text-sm mb-4">Create your first task to get started</p>
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="mt-4"
                 onClick={() => setIsDialogOpen(true)}
               >
                 <Plus className="w-4 h-4 mr-1" />

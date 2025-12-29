@@ -1,12 +1,12 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { 
   ChevronLeft, 
   ChevronRight, 
   Plus,
-  X
+  X,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -32,14 +32,6 @@ interface Event {
   day: number;
 }
 
-const initialEvents: Event[] = [
-  { id: 1, title: "Design Review", time: "10:00 AM", duration: 1, color: "bg-primary", day: 1 },
-  { id: 2, title: "Sprint Planning", time: "2:00 PM", duration: 2, color: "bg-accent", day: 2 },
-  { id: 3, title: "Team Standup", time: "9:00 AM", duration: 0.5, color: "bg-info", day: 1 },
-  { id: 4, title: "Team Standup", time: "9:00 AM", duration: 0.5, color: "bg-info", day: 3 },
-  { id: 5, title: "Client Call", time: "3:00 PM", duration: 1, color: "bg-success", day: 4 },
-];
-
 const eventColors = [
   { label: "Primary", value: "bg-primary" },
   { label: "Accent", value: "bg-accent" },
@@ -50,7 +42,7 @@ const eventColors = [
 
 export default function CalendarPage() {
   const { toast } = useToast();
-  const [events, setEvents] = useState<Event[]>(initialEvents);
+  const [events, setEvents] = useState<Event[]>([]);
   const [weekOffset, setWeekOffset] = useState(0);
   const [view, setView] = useState<'day' | 'week' | 'month'>('week');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -247,6 +239,14 @@ export default function CalendarPage() {
             })}
           </div>
         </div>
+
+        {events.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <CalendarIcon className="w-12 h-12 text-muted-foreground/30 mb-4" />
+            <p className="text-sm text-muted-foreground mb-2">No events scheduled</p>
+            <p className="text-xs text-muted-foreground">Click on any time slot to create an event</p>
+          </div>
+        )}
       </div>
 
       {/* Create Event Dialog */}
