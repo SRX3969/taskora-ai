@@ -3,9 +3,10 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, MoreHorizontal, GripVertical, X, Layout } from "lucide-react";
+import { Plus, MoreHorizontal, GripVertical, X, Layout, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useBoards, useBoardColumns } from "@/hooks/useBoards";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -15,20 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-interface BoardCard {
-  id: number;
-  title: string;
-  tags: string[];
-  assignee: string;
-}
-
-interface Column {
-  id: string;
-  title: string;
-  color: string;
-  cards: BoardCard[];
-}
 
 const tagColors: Record<string, string> = {
   "design": "bg-purple-500/10 text-purple-500",
@@ -43,84 +30,68 @@ const tagColors: Record<string, string> = {
 
 export default function Boards() {
   const { toast } = useToast();
-  const [columns, setColumns] = useState<Column[]>([
-    { id: "todo", title: "To Do", color: "bg-muted-foreground", cards: [] },
-    { id: "in-progress", title: "In Progress", color: "bg-info", cards: [] },
-    { id: "done", title: "Done", color: "bg-success", cards: [] },
-  ]);
+  const { boards, boardsLoading, createBoard } = useBoards();
+  const [currentBoardId, setCurrentBoardId] = useState<string | null>(null);
+  const { columns, isLoading, createColumn, createCard, deleteCard, moveCard } = useBoardColumns(currentBoardId);
+  
   const [isCardDialogOpen, setIsCardDialogOpen] = useState(false);
   const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [newCardTitle, setNewCardTitle] = useState("");
   const [newColumnTitle, setNewColumnTitle] = useState("");
 
+  // Create default board if none exists
+  useEffect(() => {
+    if (!boardsLoading && boards.length === 0) {
+      createBoard.mutate("My First Board");
+    } else if (boards.length > 0 && !currentBoardId) {
+      setCurrentBoardId(boards[0].id);
+    }
+  }, [boards, boardsLoading, currentBoardId]);
+
+  // Create default columns if none exist
+  useEffect(() => {
+    if (currentBoardId && !isLoading && columns.length === 0) {
+      const defaultColumns = [
+        { title: "To Do", position: 0 },
+        { title: "In Progress", position: 1 },
+        { title: "Done", position: 2 },
+      ];
+      defaultColumns.forEach(col => createColumn.mutate(col));
+    }
+  }, [currentBoardId, isLoading, columns.length]);
+
   const addCard = () => {
     if (!newCardTitle.trim() || !activeColumnId) return;
     
-    const newCard: BoardCard = {
-      id: Date.now(),
-      title: newCardTitle,
-      tags: ["feature"],
-      assignee: "user"
-    };
+    const column = columns.find(c => c.id === activeColumnId);
+    const position = column ? column.cards.length : 0;
     
-    setColumns(prev => prev.map(col => 
-      col.id === activeColumnId 
-        ? { ...col, cards: [...col.cards, newCard] }
-        : col
-    ));
-    
+    createCard.mutate({ columnId: activeColumnId, title: newCardTitle, position });
     setNewCardTitle("");
     setIsCardDialogOpen(false);
     setActiveColumnId(null);
-    toast({ title: "Card added", description: newCardTitle });
   };
 
   const addColumn = () => {
     if (!newColumnTitle.trim()) return;
-    
-    const newColumn: Column = {
-      id: `column-${Date.now()}`,
-      title: newColumnTitle,
-      color: "bg-muted-foreground",
-      cards: []
-    };
-    
-    setColumns(prev => [...prev, newColumn]);
+    createColumn.mutate({ title: newColumnTitle, position: columns.length });
     setNewColumnTitle("");
     setIsColumnDialogOpen(false);
-    toast({ title: "Column added", description: newColumnTitle });
   };
 
-  const deleteCard = (columnId: string, cardId: number) => {
-    setColumns(prev => prev.map(col => 
-      col.id === columnId 
-        ? { ...col, cards: col.cards.filter(c => c.id !== cardId) }
-        : col
-    ));
-    toast({ title: "Card deleted" });
+  const handleDeleteCard = (cardId: string) => {
+    deleteCard.mutate(cardId);
   };
 
-  const moveCard = (cardId: number, fromColumnId: string, direction: 'left' | 'right') => {
+  const handleMoveCard = (cardId: string, fromColumnId: string, direction: 'left' | 'right') => {
     const fromIndex = columns.findIndex(c => c.id === fromColumnId);
     const toIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
     
     if (toIndex < 0 || toIndex >= columns.length) return;
     
-    const card = columns[fromIndex].cards.find(c => c.id === cardId);
-    if (!card) return;
-    
-    setColumns(prev => prev.map((col, idx) => {
-      if (idx === fromIndex) {
-        return { ...col, cards: col.cards.filter(c => c.id !== cardId) };
-      }
-      if (idx === toIndex) {
-        return { ...col, cards: [...col.cards, card] };
-      }
-      return col;
-    }));
-    
-    toast({ title: "Card moved", description: `Moved to ${columns[toIndex].title}` });
+    const targetColumn = columns[toIndex];
+    moveCard.mutate({ cardId, newColumnId: targetColumn.id, newPosition: targetColumn.cards.length });
   };
 
   const openAddCard = (columnId: string) => {
@@ -129,6 +100,16 @@ export default function Boards() {
   };
 
   const totalCards = columns.reduce((sum, col) => sum + col.cards.length, 0);
+
+  if (boardsLoading || isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -144,14 +125,14 @@ export default function Boards() {
       />
       
       <div className="p-6 overflow-x-auto">
-        {totalCards === 0 && columns.length === 3 ? (
+        {totalCards === 0 && columns.length <= 3 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Layout className="w-16 h-16 text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-medium mb-2">Your board is empty</h3>
             <p className="text-sm text-muted-foreground max-w-sm mb-6">
               Start by adding cards to organize your work. Click on "Add card" in any column to get started.
             </p>
-            <Button variant="outline" onClick={() => openAddCard("todo")}>
+            <Button variant="outline" onClick={() => columns[0] && openAddCard(columns[0].id)}>
               <Plus className="w-4 h-4 mr-1" />
               Add your first card
             </Button>
@@ -167,7 +148,10 @@ export default function Boards() {
                 {/* Column Header */}
                 <div className="flex items-center justify-between mb-3 px-1">
                   <div className="flex items-center gap-2">
-                    <div className={cn("w-2 h-2 rounded-full", column.color)} />
+                    <div className={cn(
+                      "w-2 h-2 rounded-full",
+                      colIdx === 0 ? "bg-muted-foreground" : colIdx === 1 ? "bg-info" : "bg-success"
+                    )} />
                     <h3 className="font-semibold text-sm">{column.title}</h3>
                     <span className="text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
                       {column.cards.length}
@@ -197,28 +181,23 @@ export default function Boards() {
                                 variant="ghost" 
                                 size="icon" 
                                 className="w-6 h-6 opacity-0 group-hover:opacity-100 -mt-1 -mr-1"
-                                onClick={() => deleteCard(column.id, card.id)}
+                                onClick={() => handleDeleteCard(card.id)}
                               >
                                 <X className="w-3 h-3" />
                               </Button>
                             </div>
                             <div className="flex items-center justify-between">
                               <div className="flex gap-1 flex-wrap">
-                                {card.tags.map((tag) => (
-                                  <span 
-                                    key={tag} 
-                                    className={cn(
-                                      "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
-                                      tagColors[tag] || "bg-muted text-muted-foreground"
-                                    )}
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
+                                <span className={cn(
+                                  "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                                  tagColors["feature"]
+                                )}>
+                                  feature
+                                </span>
                               </div>
                               <Avatar className="w-6 h-6">
-                                <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${card.assignee}`} />
-                                <AvatarFallback>{card.assignee[0].toUpperCase()}</AvatarFallback>
+                                <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=user" />
+                                <AvatarFallback>Y</AvatarFallback>
                               </Avatar>
                             </div>
                             {/* Move buttons */}
@@ -228,7 +207,7 @@ export default function Boards() {
                                   variant="outline" 
                                   size="sm" 
                                   className="h-6 text-xs px-2"
-                                  onClick={() => moveCard(card.id, column.id, 'left')}
+                                  onClick={() => handleMoveCard(card.id, column.id, 'left')}
                                 >
                                   ← {columns[colIdx - 1].title}
                                 </Button>
@@ -238,7 +217,7 @@ export default function Boards() {
                                   variant="outline" 
                                   size="sm" 
                                   className="h-6 text-xs px-2"
-                                  onClick={() => moveCard(card.id, column.id, 'right')}
+                                  onClick={() => handleMoveCard(card.id, column.id, 'right')}
                                 >
                                   {columns[colIdx + 1].title} →
                                 </Button>
@@ -312,7 +291,12 @@ export default function Boards() {
                 </div>
               </div>
             )}
-            <Button className="w-full" onClick={addCard} disabled={!newCardTitle.trim() || !activeColumnId}>
+            <Button 
+              className="w-full" 
+              onClick={addCard} 
+              disabled={!newCardTitle.trim() || !activeColumnId || createCard.isPending}
+            >
+              {createCard.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Add Card
             </Button>
           </div>
@@ -336,7 +320,12 @@ export default function Boards() {
                 onKeyPress={(e) => e.key === 'Enter' && addColumn()}
               />
             </div>
-            <Button className="w-full" onClick={addColumn} disabled={!newColumnTitle.trim()}>
+            <Button 
+              className="w-full" 
+              onClick={addColumn} 
+              disabled={!newColumnTitle.trim() || createColumn.isPending}
+            >
+              {createColumn.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Add Column
             </Button>
           </div>

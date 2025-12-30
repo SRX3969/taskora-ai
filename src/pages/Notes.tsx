@@ -8,10 +8,12 @@ import {
   FileText, 
   Star,
   Clock,
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useNotes } from "@/hooks/useNotes";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -22,15 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-
-interface Note {
-  id: number;
-  title: string;
-  preview: string;
-  updated: string;
-  starred: boolean;
-  tags: string[];
-}
+import { formatDistanceToNow } from "date-fns";
 
 const tagColors: Record<string, string> = {
   "marketing": "bg-pink-500/10 text-pink-500",
@@ -48,62 +42,61 @@ const tagColors: Record<string, string> = {
 
 export default function Notes() {
   const { toast } = useToast();
-  const [notes, setNotes] = useState<Note[]>([]);
+  const { notes, isLoading, createNote, updateNote, deleteNote } = useNotes();
   const [searchQuery, setSearchQuery] = useState("");
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newNote, setNewNote] = useState({ title: "", content: "" });
 
   const filteredNotes = notes
-    .filter(note => showStarredOnly ? note.starred : true)
+    .filter(note => showStarredOnly ? note.is_starred : true)
     .filter(note => 
       note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      note.preview.toLowerCase().includes(searchQuery.toLowerCase())
+      (note.content?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
     );
 
-  const toggleStar = (noteId: number, e: React.MouseEvent) => {
+  const toggleStar = (noteId: string, isStarred: boolean, e: React.MouseEvent) => {
     e.stopPropagation();
-    setNotes(prev => prev.map(note => 
-      note.id === noteId ? { ...note, starred: !note.starred } : note
-    ));
-    const note = notes.find(n => n.id === noteId);
+    updateNote.mutate({ id: noteId, is_starred: !isStarred });
     toast({ 
-      title: note?.starred ? "Removed from starred" : "Added to starred",
-      description: note?.title
+      title: isStarred ? "Removed from starred" : "Added to starred"
     });
   };
 
-  const deleteNote = (noteId: number, e: React.MouseEvent) => {
+  const handleDeleteNote = (noteId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const note = notes.find(n => n.id === noteId);
-    setNotes(prev => prev.filter(n => n.id !== noteId));
-    toast({ title: "Note deleted", description: note?.title });
+    deleteNote.mutate(noteId);
   };
 
-  const createNote = () => {
+  const handleCreateNote = () => {
     if (!newNote.title.trim()) {
       toast({ title: "Error", description: "Please enter a note title", variant: "destructive" });
       return;
     }
     
-    const note: Note = {
-      id: Date.now(),
+    createNote.mutate({
       title: newNote.title,
-      preview: newNote.content || "No content yet...",
-      updated: "Just now",
-      starred: false,
-      tags: ["notes"]
-    };
+      content: newNote.content || undefined,
+      tags: ["notes"],
+    });
     
-    setNotes(prev => [note, ...prev]);
     setNewNote({ title: "", content: "" });
     setIsDialogOpen(false);
-    toast({ title: "Note created", description: note.title });
   };
 
-  const openNote = (note: Note) => {
-    toast({ title: "Opening note", description: note.title });
+  const openNote = (noteTitle: string) => {
+    toast({ title: "Opening note", description: noteTitle });
   };
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -137,7 +130,7 @@ export default function Notes() {
             onClick={() => setShowStarredOnly(!showStarredOnly)}
           >
             <Star className={cn("w-4 h-4 mr-1", showStarredOnly && "fill-current")} />
-            Starred ({notes.filter(n => n.starred).length})
+            Starred ({notes.filter(n => n.is_starred).length})
           </Button>
         </div>
 
@@ -162,7 +155,7 @@ export default function Notes() {
                 variant="interactive"
                 className="animate-fade-up group cursor-pointer"
                 style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => openNote(note)}
+                onClick={() => openNote(note.title)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
@@ -176,17 +169,17 @@ export default function Notes() {
                         size="icon" 
                         className={cn(
                           "w-7 h-7",
-                          note.starred ? "text-warning" : "opacity-0 group-hover:opacity-100"
+                          note.is_starred ? "text-warning" : "opacity-0 group-hover:opacity-100"
                         )}
-                        onClick={(e) => toggleStar(note.id, e)}
+                        onClick={(e) => toggleStar(note.id, note.is_starred, e)}
                       >
-                        <Star className={cn("w-4 h-4", note.starred && "fill-current")} />
+                        <Star className={cn("w-4 h-4", note.is_starred && "fill-current")} />
                       </Button>
                       <Button 
                         variant="ghost" 
                         size="icon" 
                         className="w-7 h-7 opacity-0 group-hover:opacity-100"
-                        onClick={(e) => deleteNote(note.id, e)}
+                        onClick={(e) => handleDeleteNote(note.id, e)}
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
@@ -194,12 +187,12 @@ export default function Notes() {
                   </div>
                   
                   <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                    {note.preview}
+                    {note.content || "No content yet..."}
                   </p>
                   
                   <div className="flex items-center justify-between">
                     <div className="flex gap-1 flex-wrap">
-                      {note.tags.map((tag) => (
+                      {note.tags?.map((tag) => (
                         <span 
                           key={tag} 
                           className={cn(
@@ -213,7 +206,7 @@ export default function Notes() {
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="w-3 h-3" />
-                      {note.updated}
+                      {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true })}
                     </div>
                   </div>
                 </CardContent>
@@ -267,7 +260,14 @@ export default function Notes() {
                 onChange={(e) => setNewNote(prev => ({ ...prev, content: e.target.value }))}
               />
             </div>
-            <Button className="w-full" onClick={createNote}>Create Note</Button>
+            <Button 
+              className="w-full" 
+              onClick={handleCreateNote}
+              disabled={createNote.isPending}
+            >
+              {createNote.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Create Note
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

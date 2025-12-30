@@ -6,11 +6,12 @@ import {
   ChevronRight, 
   Plus,
   X,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import {
   Dialog,
   DialogContent,
@@ -19,81 +20,89 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { format, addDays, startOfWeek, addWeeks } from "date-fns";
 
 const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8 AM to 7 PM
 
-interface Event {
-  id: number;
-  title: string;
-  time: string;
-  duration: number;
-  color: string;
-  day: number;
-}
-
 const eventColors = [
-  { label: "Primary", value: "bg-primary" },
-  { label: "Accent", value: "bg-accent" },
-  { label: "Info", value: "bg-info" },
-  { label: "Success", value: "bg-success" },
-  { label: "Warning", value: "bg-warning" },
+  { label: "Primary", value: "#4F46E5" },
+  { label: "Accent", value: "#F59E0B" },
+  { label: "Info", value: "#3B82F6" },
+  { label: "Success", value: "#10B981" },
+  { label: "Warning", value: "#EF4444" },
 ];
 
 export default function CalendarPage() {
-  const { toast } = useToast();
-  const [events, setEvents] = useState<Event[]>([]);
+  const { events, isLoading, createEvent, deleteEvent } = useCalendarEvents();
   const [weekOffset, setWeekOffset] = useState(0);
   const [view, setView] = useState<'day' | 'week' | 'month'>('week');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({
     title: "",
-    time: "9:00 AM",
+    time: "09:00",
     duration: 1,
     day: 1,
-    color: "bg-primary"
+    color: "#4F46E5"
   });
 
-  const baseDate = 23 + weekOffset * 7;
+  const baseDate = addWeeks(startOfWeek(new Date()), weekOffset);
 
   const goToToday = () => {
     setWeekOffset(0);
-    toast({ title: "Calendar", description: "Navigated to current week" });
   };
 
-  const createEvent = () => {
-    if (!newEvent.title.trim()) {
-      toast({ title: "Error", description: "Please enter an event title", variant: "destructive" });
-      return;
-    }
+  const handleCreateEvent = () => {
+    if (!newEvent.title.trim()) return;
 
-    const event: Event = {
-      id: Date.now(),
+    const eventDate = addDays(baseDate, newEvent.day);
+    const [hours, minutes] = newEvent.time.split(':').map(Number);
+    
+    const startTime = new Date(eventDate);
+    startTime.setHours(hours, minutes, 0, 0);
+    
+    const endTime = new Date(startTime);
+    endTime.setHours(endTime.getHours() + newEvent.duration);
+
+    createEvent.mutate({
       title: newEvent.title,
-      time: newEvent.time,
-      duration: newEvent.duration,
-      day: newEvent.day,
-      color: newEvent.color
-    };
+      start_time: startTime.toISOString(),
+      end_time: endTime.toISOString(),
+      color: newEvent.color,
+    });
 
-    setEvents(prev => [...prev, event]);
-    setNewEvent({ title: "", time: "9:00 AM", duration: 1, day: 1, color: "bg-primary" });
+    setNewEvent({ title: "", time: "09:00", duration: 1, day: 1, color: "#4F46E5" });
     setIsDialogOpen(false);
-    toast({ title: "Event created", description: newEvent.title });
   };
 
-  const deleteEvent = (eventId: number, e: React.MouseEvent) => {
+  const handleDeleteEvent = (eventId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const event = events.find(ev => ev.id === eventId);
-    setEvents(prev => prev.filter(ev => ev.id !== eventId));
-    toast({ title: "Event deleted", description: event?.title });
+    deleteEvent.mutate(eventId);
   };
+
+  const getEventsForDay = (dayIndex: number) => {
+    const dayDate = addDays(baseDate, dayIndex);
+    return events.filter(event => {
+      const eventDate = new Date(event.start_time);
+      return eventDate.toDateString() === dayDate.toDateString();
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
       <AppHeader 
         title="Calendar" 
-        subtitle={`December 2024${weekOffset !== 0 ? ` (Week ${weekOffset > 0 ? '+' : ''}${weekOffset})` : ''}`}
+        subtitle={format(baseDate, "MMMM yyyy")}
         action={
           <Button variant="hero" size="sm" onClick={() => setIsDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-1" />
@@ -120,10 +129,7 @@ export default function CalendarPage() {
                 key={v}
                 variant={view === v ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => {
-                  setView(v);
-                  toast({ title: `${v.charAt(0).toUpperCase() + v.slice(1)} view` });
-                }}
+                onClick={() => setView(v)}
               >
                 {v.charAt(0).toUpperCase() + v.slice(1)}
               </Button>
@@ -137,8 +143,8 @@ export default function CalendarPage() {
           <div className="grid grid-cols-8 border-b">
             <div className="p-3 text-center text-sm text-muted-foreground border-r" />
             {days.map((day, idx) => {
-              const date = baseDate + idx;
-              const isToday = idx === 1 && weekOffset === 0;
+              const date = addDays(baseDate, idx);
+              const isToday = date.toDateString() === new Date().toDateString();
               return (
                 <div 
                   key={day} 
@@ -156,7 +162,7 @@ export default function CalendarPage() {
                     "text-lg font-semibold",
                     isToday && "text-primary"
                   )}>
-                    {date > 31 ? date - 31 : date}
+                    {format(date, "d")}
                   </p>
                 </div>
               );
@@ -170,7 +176,7 @@ export default function CalendarPage() {
               {hours.map((hour) => (
                 <div key={hour} className="h-16 border-b last:border-b-0 px-2 py-1">
                   <span className="text-xs text-muted-foreground">
-                    {hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
+                    {hour > 12 ? `${hour - 12} PM` : hour === 12 ? '12 PM' : `${hour} AM`}
                   </span>
                 </div>
               ))}
@@ -178,8 +184,9 @@ export default function CalendarPage() {
 
             {/* Days Columns */}
             {days.map((day, dayIdx) => {
-              const isToday = dayIdx === 1 && weekOffset === 0;
-              const dayEvents = events.filter(e => e.day === dayIdx);
+              const date = addDays(baseDate, dayIdx);
+              const isToday = date.toDateString() === new Date().toDateString();
+              const dayEvents = getEventsForDay(dayIdx);
               
               return (
                 <div 
@@ -197,7 +204,7 @@ export default function CalendarPage() {
                         setNewEvent(prev => ({ 
                           ...prev, 
                           day: dayIdx,
-                          time: hour > 12 ? `${hour - 12}:00 PM` : `${hour}:00 AM`
+                          time: `${hour.toString().padStart(2, '0')}:00`
                         }));
                         setIsDialogOpen(true);
                       }}
@@ -206,31 +213,33 @@ export default function CalendarPage() {
                   
                   {/* Events */}
                   {dayEvents.map((event) => {
-                    const startHour = parseInt(event.time.split(":")[0]);
-                    const isPM = event.time.includes("PM");
-                    const hourOffset = (isPM && startHour !== 12 ? startHour + 12 : startHour) - 8;
+                    const startTime = new Date(event.start_time);
+                    const endTime = new Date(event.end_time);
+                    const startHour = startTime.getHours() + startTime.getMinutes() / 60;
+                    const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+                    const hourOffset = startHour - 8;
+                    
+                    if (hourOffset < 0 || hourOffset >= 12) return null;
                     
                     return (
                       <div
                         key={event.id}
-                        className={cn(
-                          "absolute left-1 right-1 rounded-md p-2 text-xs text-white cursor-pointer hover:opacity-90 transition-opacity group",
-                          event.color
-                        )}
+                        className="absolute left-1 right-1 rounded-md p-2 text-xs text-white cursor-pointer hover:opacity-90 transition-opacity group"
                         style={{
+                          backgroundColor: event.color,
                           top: `${hourOffset * 64 + 4}px`,
-                          height: `${event.duration * 64 - 8}px`,
+                          height: `${Math.min(duration, 12 - hourOffset) * 64 - 8}px`,
                         }}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <button 
                           className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => deleteEvent(event.id, e)}
+                          onClick={(e) => handleDeleteEvent(event.id, e)}
                         >
                           <X className="w-3 h-3" />
                         </button>
                         <p className="font-medium truncate">{event.title}</p>
-                        <p className="opacity-80">{event.time}</p>
+                        <p className="opacity-80">{format(startTime, "h:mm a")}</p>
                       </div>
                     );
                   })}
@@ -285,7 +294,7 @@ export default function CalendarPage() {
                 <Label htmlFor="eventTime">Time</Label>
                 <Input 
                   id="eventTime" 
-                  placeholder="9:00 AM"
+                  type="time"
                   value={newEvent.time}
                   onChange={(e) => setNewEvent(prev => ({ ...prev, time: e.target.value }))}
                 />
@@ -299,15 +308,22 @@ export default function CalendarPage() {
                     key={color.value}
                     className={cn(
                       "w-8 h-8 rounded-full transition-transform hover:scale-110",
-                      color.value,
                       newEvent.color === color.value && "ring-2 ring-offset-2 ring-primary"
                     )}
+                    style={{ backgroundColor: color.value }}
                     onClick={() => setNewEvent(prev => ({ ...prev, color: color.value }))}
                   />
                 ))}
               </div>
             </div>
-            <Button className="w-full" onClick={createEvent}>Create Event</Button>
+            <Button 
+              className="w-full" 
+              onClick={handleCreateEvent}
+              disabled={createEvent.isPending}
+            >
+              {createEvent.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Create Event
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
