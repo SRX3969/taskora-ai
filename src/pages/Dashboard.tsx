@@ -12,66 +12,41 @@ import {
   TrendingUp,
   Clock,
   Users,
-  Plus
+  Plus,
+  Loader2
 } from "lucide-react";
-import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
-
-interface Task {
-  id: number;
-  title: string;
-  priority: "high" | "medium" | "low";
-  time: string;
-  completed: boolean;
-}
-
-interface Event {
-  id: number;
-  title: string;
-  time: string;
-  attendees: number;
-}
-
-interface Message {
-  id: number;
-  channel: string;
-  message: string;
-  time: string;
-}
+import { useTasks } from "@/hooks/useTasks";
+import { useMessages } from "@/hooks/useMessages";
+import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { format } from "date-fns";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { tasks, isLoading: tasksLoading } = useTasks();
+  const { messages, isLoading: messagesLoading } = useMessages();
+  const { events, isLoading: eventsLoading } = useCalendarEvents();
   
-  const completedCount = tasks.filter(t => t.completed).length;
+  const isLoading = tasksLoading || messagesLoading || eventsLoading;
+  const completedCount = tasks.filter(t => t.status === "done").length;
+  const todaysTasks = tasks.filter(t => t.status !== "done").slice(0, 5);
+  const recentMessages = messages.slice(-5).reverse();
+  const upcomingEvents = events.slice(0, 5);
 
-  const toggleTask = (taskId: number) => {
-    setTasks(prev => prev.map(task => 
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    ));
-    const task = tasks.find(t => t.id === taskId);
-    toast({
-      title: task?.completed ? "Task uncompleted" : "Task completed!",
-      description: task?.title,
-    });
-  };
-
-  const viewFullSummary = () => {
-    toast({
-      title: "AI Summary",
-      description: "Opening AI Assistant...",
-    });
-    navigate("/ai-assistant");
-  };
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
       <AppHeader 
-        title="Welcome to Proddy" 
+        title="Welcome to Taskora AI" 
         subtitle="Here's what's happening today"
       />
       
@@ -86,8 +61,8 @@ export default function Dashboard() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Tasks Due Today</p>
-                  <p className="text-2xl font-bold">{tasks.length}</p>
+                  <p className="text-sm text-muted-foreground">Active Tasks</p>
+                  <p className="text-2xl font-bold">{tasks.length - completedCount}</p>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <CheckSquare className="w-5 h-5 text-primary" />
@@ -108,7 +83,7 @@ export default function Dashboard() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Meetings</p>
+                  <p className="text-sm text-muted-foreground">Events</p>
                   <p className="text-2xl font-bold">{events.length}</p>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
@@ -117,7 +92,7 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
                 <Clock className="w-3 h-3" />
-                <span>{events.length > 0 ? "Events scheduled" : "No meetings"}</span>
+                <span>{events.length > 0 ? "Events scheduled" : "No events"}</span>
               </div>
             </CardContent>
           </Card>
@@ -139,7 +114,7 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
                 <Users className="w-3 h-3" />
-                <span>Start chatting</span>
+                <span>{messages.length > 0 ? "Active conversations" : "Start chatting"}</span>
               </div>
             </CardContent>
           </Card>
@@ -181,10 +156,10 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground mb-4">
               {tasks.length === 0 && events.length === 0 
                 ? "Welcome! Start by creating tasks, scheduling events, or chatting with the AI assistant to get personalized insights about your productivity."
-                : `You have ${tasks.length} tasks and ${events.length} events today. Ask me anything about your workspace!`
+                : `You have ${tasks.length - completedCount} active tasks and ${events.length} events scheduled. Ask me anything about your workspace!`
               }
             </p>
-            <Button variant="outline" size="sm" onClick={viewFullSummary}>
+            <Button variant="outline" size="sm" onClick={() => navigate("/ai-assistant")}>
               Chat with AI
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
@@ -196,38 +171,31 @@ export default function Dashboard() {
           {/* Today's Tasks */}
           <Card className="animate-fade-up animation-delay-500">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Today's Tasks</CardTitle>
+              <CardTitle className="text-base">Active Tasks</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => navigate("/tasks")}>View All</Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              {tasks.length === 0 ? (
+              {todaysTasks.length === 0 ? (
                 <div className="text-center py-8">
                   <CheckSquare className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-sm text-muted-foreground mb-3">No tasks yet</p>
+                  <p className="text-sm text-muted-foreground mb-3">No active tasks</p>
                   <Button variant="outline" size="sm" onClick={() => navigate("/tasks")}>
                     <Plus className="w-4 h-4 mr-1" />
                     Create Task
                   </Button>
                 </div>
               ) : (
-                tasks.map((task) => (
+                todaysTasks.map((task) => (
                   <div 
                     key={task.id} 
                     className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
-                    onClick={() => toggleTask(task.id)}
+                    onClick={() => navigate("/tasks")}
                   >
-                    <input 
-                      type="checkbox" 
-                      checked={task.completed}
-                      onChange={() => toggleTask(task.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-4 h-4 rounded border-border cursor-pointer" 
-                    />
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium truncate ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                        {task.title}
+                      <p className="text-sm font-medium truncate">{task.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(task.created_at), "MMM d")}
                       </p>
-                      <p className="text-xs text-muted-foreground">{task.time}</p>
                     </div>
                     <Badge 
                       variant={
@@ -250,7 +218,7 @@ export default function Dashboard() {
               <Button variant="ghost" size="sm" onClick={() => navigate("/calendar")}>View All</Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              {events.length === 0 ? (
+              {upcomingEvents.length === 0 ? (
                 <div className="text-center py-8">
                   <Calendar className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
                   <p className="text-sm text-muted-foreground mb-3">No events scheduled</p>
@@ -260,25 +228,23 @@ export default function Dashboard() {
                   </Button>
                 </div>
               ) : (
-                events.map((event) => (
+                upcomingEvents.map((event) => (
                   <div 
                     key={event.id} 
                     className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
-                    onClick={() => {
-                      toast({ title: "Event Details", description: `Opening ${event.title}...` });
-                      navigate("/calendar");
-                    }}
+                    onClick={() => navigate("/calendar")}
                   >
-                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                      <Calendar className="w-5 h-5 text-accent" />
+                    <div 
+                      className="w-10 h-10 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: `${event.color}20` }}
+                    >
+                      <Calendar className="w-5 h-5" style={{ color: event.color }} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{event.title}</p>
-                      <p className="text-xs text-muted-foreground">{event.time}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Users className="w-3 h-3" />
-                      {event.attendees}
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(event.start_time), "MMM d, h:mm a")}
+                      </p>
                     </div>
                   </div>
                 ))
@@ -293,7 +259,7 @@ export default function Dashboard() {
               <Button variant="ghost" size="sm" onClick={() => navigate("/messaging")}>View All</Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              {messages.length === 0 ? (
+              {recentMessages.length === 0 ? (
                 <div className="text-center py-8">
                   <MessageSquare className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
                   <p className="text-sm text-muted-foreground mb-3">No messages yet</p>
@@ -303,23 +269,22 @@ export default function Dashboard() {
                   </Button>
                 </div>
               ) : (
-                messages.map((msg) => (
+                recentMessages.map((msg) => (
                   <div 
                     key={msg.id} 
                     className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
-                    onClick={() => {
-                      toast({ title: "Opening Channel", description: msg.channel });
-                      navigate("/messaging");
-                    }}
+                    onClick={() => navigate("/messaging")}
                   >
                     <div className="w-8 h-8 rounded-full bg-info/10 flex items-center justify-center flex-shrink-0">
                       <MessageSquare className="w-4 h-4 text-info" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-primary">{msg.channel}</p>
-                      <p className="text-sm text-muted-foreground truncate">{msg.message}</p>
+                      <p className="text-sm font-medium text-primary">#{msg.channel}</p>
+                      <p className="text-sm text-muted-foreground truncate">{msg.content}</p>
                     </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">{msg.time}</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {format(new Date(msg.created_at), "h:mm a")}
+                    </span>
                   </div>
                 ))
               )}

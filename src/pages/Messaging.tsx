@@ -10,10 +10,12 @@ import {
   Plus,
   Search,
   Bot,
-  MessageSquare
+  MessageSquare,
+  Loader2
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { useMessages } from "@/hooks/useMessages";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -24,83 +26,41 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-
-interface Message {
-  id: number;
-  user: { name: string; avatar: string };
-  content: string;
-  time: string;
-  reactions: { emoji: string; count: number }[];
-}
-
-interface Channel {
-  id: number;
-  name: string;
-  unread: number;
-}
+import { format } from "date-fns";
 
 export default function Messaging() {
   const { toast } = useToast();
-  const [channels, setChannels] = useState<Channel[]>([
-    { id: 1, name: "general", unread: 0 },
-  ]);
+  const { messages, isLoading, sendMessage } = useMessages();
   const [selectedChannel, setSelectedChannel] = useState("general");
   const [messageInput, setMessageInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isChannelDialogOpen, setIsChannelDialogOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
+  const [customChannels, setCustomChannels] = useState<string[]>([]);
 
-  const sendMessage = () => {
+  // Get unique channels from messages
+  const channels = useMemo(() => {
+    const messageChannels = [...new Set(messages.map(m => m.channel))];
+    const allChannels = ["general", ...customChannels, ...messageChannels.filter(c => c !== "general" && !customChannels.includes(c))];
+    return [...new Set(allChannels)];
+  }, [messages, customChannels]);
+
+  const channelMessages = useMemo(() => 
+    messages.filter(m => m.channel === selectedChannel),
+    [messages, selectedChannel]
+  );
+
+  const handleSendMessage = () => {
     if (!messageInput.trim()) return;
-    
-    const newMessage: Message = {
-      id: Date.now(),
-      user: { name: "You", avatar: "user" },
-      content: messageInput,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      reactions: []
-    };
-    
-    setMessages(prev => [...prev, newMessage]);
+    sendMessage.mutate({ channel: selectedChannel, content: messageInput });
     setMessageInput("");
-    toast({ title: "Message sent", description: `To #${selectedChannel}` });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSendMessage();
     }
-  };
-
-  const addReaction = (messageId: number, emoji: string) => {
-    setMessages(prev => prev.map(msg => {
-      if (msg.id === messageId) {
-        const existingReaction = msg.reactions.find(r => r.emoji === emoji);
-        if (existingReaction) {
-          return {
-            ...msg,
-            reactions: msg.reactions.map(r => 
-              r.emoji === emoji ? { ...r, count: r.count + 1 } : r
-            )
-          };
-        } else {
-          return {
-            ...msg,
-            reactions: [...msg.reactions, { emoji, count: 1 }]
-          };
-        }
-      }
-      return msg;
-    }));
-  };
-
-  const selectChannel = (channelName: string) => {
-    setSelectedChannel(channelName);
-    setChannels(prev => prev.map(ch => 
-      ch.name === channelName ? { ...ch, unread: 0 } : ch
-    ));
   };
 
   const createChannel = () => {
@@ -109,21 +69,16 @@ export default function Messaging() {
       return;
     }
     
-    const newChannel: Channel = {
-      id: Date.now(),
-      name: newChannelName.toLowerCase().replace(/\s+/g, '-'),
-      unread: 0
-    };
-    
-    setChannels(prev => [...prev, newChannel]);
+    const formattedName = newChannelName.toLowerCase().replace(/\s+/g, '-');
+    setCustomChannels(prev => [...prev, formattedName]);
     setNewChannelName("");
     setIsChannelDialogOpen(false);
-    setSelectedChannel(newChannel.name);
-    toast({ title: "Channel created", description: `#${newChannel.name}` });
+    setSelectedChannel(formattedName);
+    toast({ title: "Channel created", description: `#${formattedName}` });
   };
 
   const summarizeChannel = () => {
-    if (messages.length === 0) {
+    if (channelMessages.length === 0) {
       toast({ 
         title: "No messages", 
         description: "Start a conversation to get AI summaries" 
@@ -132,13 +87,23 @@ export default function Messaging() {
     }
     toast({ 
       title: "AI Summary", 
-      description: `This channel has ${messages.length} messages. Key topics discussed include: ${messages.slice(0, 3).map(m => m.content.slice(0, 20)).join(", ")}...` 
+      description: `This channel has ${channelMessages.length} messages. Key topics discussed include: ${channelMessages.slice(0, 3).map(m => m.content.slice(0, 20)).join(", ")}...` 
     });
   };
 
   const filteredChannels = channels.filter(ch => 
-    ch.name.toLowerCase().includes(searchQuery.toLowerCase())
+    ch.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -189,27 +154,30 @@ export default function Messaging() {
             </div>
             
             <ul className="space-y-0.5">
-              {filteredChannels.map((channel) => (
-                <li key={channel.id}>
-                  <button
-                    onClick={() => selectChannel(channel.name)}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors",
-                      selectedChannel === channel.name
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    )}
-                  >
-                    <Hash className="w-4 h-4" />
-                    <span className="flex-1 text-left">{channel.name}</span>
-                    {channel.unread > 0 && (
-                      <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                        {channel.unread}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
+              {filteredChannels.map((channel) => {
+                const unreadCount = messages.filter(m => m.channel === channel).length;
+                return (
+                  <li key={channel}>
+                    <button
+                      onClick={() => setSelectedChannel(channel)}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors",
+                        selectedChannel === channel
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      )}
+                    >
+                      <Hash className="w-4 h-4" />
+                      <span className="flex-1 text-left">{channel}</span>
+                      {unreadCount > 0 && selectedChannel !== channel && (
+                        <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>
@@ -235,7 +203,7 @@ export default function Messaging() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 ? (
+            {channelMessages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <MessageSquare className="w-16 h-16 text-muted-foreground/30 mb-4" />
                 <h3 className="text-lg font-medium mb-2">No messages yet</h3>
@@ -244,36 +212,20 @@ export default function Messaging() {
                 </p>
               </div>
             ) : (
-              messages.map((message) => (
+              channelMessages.map((message) => (
                 <div key={message.id} className="flex gap-3 group hover:bg-secondary/30 p-2 rounded-lg -mx-2 transition-colors">
                   <Avatar className="w-9 h-9">
-                    <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user.avatar}`} />
-                    <AvatarFallback>{message.user.name[0]}</AvatarFallback>
+                    <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=user" />
+                    <AvatarFallback>Y</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-baseline gap-2">
-                      <span className="font-semibold text-sm">{message.user.name}</span>
-                      <span className="text-xs text-muted-foreground">{message.time}</span>
+                      <span className="font-semibold text-sm">You</span>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(message.created_at), "h:mm a")}
+                      </span>
                     </div>
                     <p className="text-sm text-foreground/90 mt-0.5">{message.content}</p>
-                    <div className="flex gap-1 mt-2">
-                      {message.reactions.map((reaction, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => addReaction(message.id, reaction.emoji)}
-                          className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-xs hover:bg-secondary/80 transition-colors"
-                        >
-                          {reaction.emoji}
-                          <span className="text-muted-foreground">{reaction.count}</span>
-                        </button>
-                      ))}
-                      <button 
-                        onClick={() => addReaction(message.id, "👍")}
-                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/50 text-xs hover:bg-secondary transition-all"
-                      >
-                        <Smile className="w-3 h-3" />
-                      </button>
-                    </div>
                   </div>
                 </div>
               ))
@@ -297,8 +249,17 @@ export default function Messaging() {
               <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => toast({ title: "Emoji picker", description: "Emoji picker coming soon!" })}>
                 <Smile className="w-5 h-5" />
               </Button>
-              <Button size="icon" className="flex-shrink-0" onClick={sendMessage} disabled={!messageInput.trim()}>
-                <Send className="w-4 h-4" />
+              <Button 
+                size="icon" 
+                className="flex-shrink-0" 
+                onClick={handleSendMessage} 
+                disabled={!messageInput.trim() || sendMessage.isPending}
+              >
+                {sendMessage.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
               </Button>
             </div>
           </div>
