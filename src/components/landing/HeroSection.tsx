@@ -28,7 +28,7 @@ export function HeroSection() {
           </h1>
           
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 animate-fade-up animation-delay-200 text-balance">
-            Stop switching between apps. Proddy combines messaging, tasks, calendar, notes, and AI assistance into one intelligent workspace that understands your work.
+            Stop switching between apps. Taskora AI combines messaging, tasks, calendar, notes, and AI assistance into one intelligent workspace that understands your work.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-up animation-delay-300">
@@ -55,7 +55,7 @@ export function HeroSection() {
           <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-card">
             <img 
               src={heroImage} 
-              alt="Proddy Dashboard Preview" 
+              alt="Taskora AI Dashboard Preview" 
               className="w-full h-auto"
             />
           </div>
