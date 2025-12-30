@@ -11,13 +11,16 @@ import {
   Lightbulb,
   Loader2
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
+
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
 const suggestions = [
   { icon: Sparkles, text: "How can you help me?" },
@@ -26,57 +29,151 @@ const suggestions = [
   { icon: MessageSquare, text: "Tips for staying productive" },
 ];
 
+async function streamChat({
+  messages,
+  onDelta,
+  onDone,
+  onError,
+}: {
+  messages: Message[];
+  onDelta: (deltaText: string) => void;
+  onDone: () => void;
+  onError: (error: string) => void;
+}) {
+  try {
+    const resp = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ messages }),
+    });
+
+    if (!resp.ok) {
+      const errorData = await resp.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with status ${resp.status}`);
+    }
+
+    if (!resp.body) {
+      throw new Error("No response body");
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let textBuffer = "";
+    let streamDone = false;
+
+    while (!streamDone) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      textBuffer += decoder.decode(value, { stream: true });
+
+      let newlineIndex: number;
+      while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+        let line = textBuffer.slice(0, newlineIndex);
+        textBuffer = textBuffer.slice(newlineIndex + 1);
+
+        if (line.endsWith("\r")) line = line.slice(0, -1);
+        if (line.startsWith(":") || line.trim() === "") continue;
+        if (!line.startsWith("data: ")) continue;
+
+        const jsonStr = line.slice(6).trim();
+        if (jsonStr === "[DONE]") {
+          streamDone = true;
+          break;
+        }
+
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+          if (content) onDelta(content);
+        } catch {
+          textBuffer = line + "\n" + textBuffer;
+          break;
+        }
+      }
+    }
+
+    // Final flush
+    if (textBuffer.trim()) {
+      for (let raw of textBuffer.split("\n")) {
+        if (!raw) continue;
+        if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+        if (raw.startsWith(":") || raw.trim() === "") continue;
+        if (!raw.startsWith("data: ")) continue;
+        const jsonStr = raw.slice(6).trim();
+        if (jsonStr === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+          if (content) onDelta(content);
+        } catch { /* ignore */ }
+      }
+    }
+
+    onDone();
+  } catch (error) {
+    onError(error instanceof Error ? error.message : "An error occurred");
+  }
+}
+
 export default function AIAssistant() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Hello! I'm your AI assistant. I can help you with tasks, summarize meetings, find information across your workspace, and much more. What would you like to know?"
+      content: "Hello! I'm Proddy, your AI productivity assistant. I can help you with tasks, scheduling, note-taking, and much more. What would you like to know?"
     }
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
-  const generateResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    if (lowerMessage.includes("help") || lowerMessage.includes("features")) {
-      return "I can help you with:\n\n• **Task Management** - Create, organize, and track your tasks\n• **Calendar** - Schedule events and manage your time\n• **Notes** - Capture and organize your ideas\n• **Messaging** - Communicate with your team\n• **Boards** - Visualize your projects with Kanban boards\n• **Reports** - Track your productivity\n\nWhat would you like to explore?";
-    }
-    
-    if (lowerMessage.includes("plan") || lowerMessage.includes("day") || lowerMessage.includes("schedule")) {
-      return "To plan your day effectively:\n\n1. **Review your tasks** - Check what's due today in the Tasks section\n2. **Block time** - Use the Calendar to schedule focus blocks\n3. **Prioritize** - Focus on high-priority items first\n4. **Take breaks** - Schedule short breaks to stay refreshed\n\nWould you like me to help you create a task or schedule an event?";
-    }
-    
-    if (lowerMessage.includes("productive") || lowerMessage.includes("tips")) {
-      return "Here are some productivity tips:\n\n• **Time blocking** - Dedicate specific hours to specific tasks\n• **2-minute rule** - If it takes less than 2 minutes, do it now\n• **Batch similar tasks** - Group similar activities together\n• **Minimize distractions** - Use focus mode during deep work\n• **Regular reviews** - Check your Reports to understand patterns\n\nWant to start with any of these strategies?";
-    }
-    
-    if (lowerMessage.includes("task")) {
-      return "I can help you with tasks! Here's what you can do:\n\n• Create new tasks with priorities and due dates\n• Track task status (To Do → In Progress → Done)\n• Filter tasks by status or priority\n• View tasks in the Dashboard or Tasks page\n\nHead to the **Tasks** section to get started!";
-    }
-    
-    if (lowerMessage.includes("calendar") || lowerMessage.includes("event") || lowerMessage.includes("meeting")) {
-      return "The Calendar helps you manage your schedule:\n\n• Click any time slot to create an event\n• Choose different colors to categorize events\n• Navigate between weeks using the arrows\n• Switch between day, week, and month views\n\nGo to the **Calendar** to schedule your events!";
-    }
-    
-    return "I understand! Here are some things I can help with:\n\n• **Tasks** - Create and manage your to-do list\n• **Calendar** - Schedule events and meetings\n• **Notes** - Capture your ideas\n• **Boards** - Organize projects visually\n• **Reports** - Track your productivity\n\nTry asking me about any of these, or let me know what specific help you need!";
-  };
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const sendMessage = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || isTyping) return;
     
     const userMessage: Message = { role: "user", content: text };
-    setMessages(prev => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInput("");
     setIsTyping(true);
 
-    // Simulate AI thinking delay
-    await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 700));
+    let assistantSoFar = "";
+    
+    const upsertAssistant = (nextChunk: string) => {
+      assistantSoFar += nextChunk;
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && prev.length > 1 && prev[prev.length - 2]?.content === text) {
+          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
+        }
+        return [...prev, { role: "assistant", content: assistantSoFar }];
+      });
+    };
 
-    const response = generateResponse(text);
-    const assistantMessage: Message = { role: "assistant", content: response };
-    setMessages(prev => [...prev, assistantMessage]);
-    setIsTyping(false);
+    await streamChat({
+      messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+      onDelta: (chunk) => upsertAssistant(chunk),
+      onDone: () => setIsTyping(false),
+      onError: (error) => {
+        setIsTyping(false);
+        toast({
+          title: "Error",
+          description: error,
+          variant: "destructive",
+        });
+        // Add error message to chat
+        setMessages(prev => [...prev, { 
+          role: "assistant", 
+          content: "I'm sorry, I encountered an error. Please try again." 
+        }]);
+      },
+    });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -100,7 +197,7 @@ export default function AIAssistant() {
             </div>
             <div>
               <h1 className="text-lg font-semibold">AI Assistant</h1>
-              <p className="text-sm text-muted-foreground">Your intelligent workspace companion</p>
+              <p className="text-sm text-muted-foreground">Powered by Lovable AI</p>
             </div>
           </div>
         </div>
@@ -141,7 +238,7 @@ export default function AIAssistant() {
               </div>
             ))}
             
-            {isTyping && (
+            {isTyping && messages[messages.length - 1]?.role !== "assistant" && (
               <div className="flex gap-3 animate-fade-up">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center flex-shrink-0">
                   <Bot className="w-5 h-5 text-primary-foreground" />
@@ -154,6 +251,7 @@ export default function AIAssistant() {
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Suggestions */}
@@ -184,7 +282,7 @@ export default function AIAssistant() {
             <div className="flex items-center gap-2 p-2 rounded-xl border bg-background max-w-4xl mx-auto">
               <input
                 type="text"
-                placeholder="Ask me anything about your workspace..."
+                placeholder="Ask me anything about productivity..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
