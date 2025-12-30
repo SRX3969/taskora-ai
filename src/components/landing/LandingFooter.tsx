@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Sparkles, Twitter, Github, Linkedin } from "lucide-react";
+import { Twitter, Github, Linkedin } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 export function LandingFooter() {
   return (
@@ -7,11 +8,8 @@ export function LandingFooter() {
       <div className="container mx-auto px-4">
         <div className="grid md:grid-cols-4 gap-8 mb-8">
           <div>
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold">Proddy</span>
+            <Link to="/" className="inline-block mb-4">
+              <Logo size="sm" />
             </Link>
             <p className="text-sm text-muted-foreground">
               Your AI-powered productivity workspace for modern teams.
@@ -50,7 +48,7 @@ export function LandingFooter() {
         
         <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t">
           <p className="text-sm text-muted-foreground mb-4 md:mb-0">
-            © 2024 Proddy. All rights reserved.
+            © 2024 Taskora AI. All rights reserved.
           </p>
           <div className="flex gap-4">
             <Link to="#" className="text-muted-foreground hover:text-foreground transition-colors">

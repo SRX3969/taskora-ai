@@ -1,23 +1,19 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { 
-  Sparkles, 
-  Menu, 
-  X 
-} from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import { Logo } from "@/components/Logo";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function LandingHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user } = useAuth();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass border-b">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold">Proddy</span>
+          <Logo size="sm" />
         </Link>
 
         {/* Desktop Navigation */}
@@ -34,12 +30,20 @@ export function LandingHeader() {
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
-          <Button variant="ghost" asChild>
-            <Link to="/auth">Log in</Link>
-          </Button>
-          <Button variant="hero" asChild>
-            <Link to="/auth">Get Started Free</Link>
-          </Button>
+          {user ? (
+            <Button variant="hero" asChild>
+              <Link to="/dashboard">Go to Dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" asChild>
+                <Link to="/auth">Log in</Link>
+              </Button>
+              <Button variant="hero" asChild>
+                <Link to="/auth">Get Started Free</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -77,12 +81,20 @@ export function LandingHeader() {
               Pricing
             </Link>
             <div className="flex flex-col gap-2 pt-2 border-t">
-              <Button variant="ghost" asChild>
-                <Link to="/auth">Log in</Link>
-              </Button>
-              <Button variant="hero" asChild>
-                <Link to="/auth">Get Started Free</Link>
-              </Button>
+              {user ? (
+                <Button variant="hero" asChild>
+                  <Link to="/dashboard">Go to Dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button variant="ghost" asChild>
+                    <Link to="/auth">Log in</Link>
+                  </Button>
+                  <Button variant="hero" asChild>
+                    <Link to="/auth">Get Started Free</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </nav>
         </div>
