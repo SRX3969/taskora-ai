@@ -100,6 +100,31 @@ export default function Canvas() {
       setSelectedCanvasId(canvases[0].id);
     }
   }, [canvases, selectedCanvasId]);
+ 
+   // Auto-create canvas if none exists
+   useEffect(() => {
+     if (!isLoading && canvases.length === 0 && !createCanvas.isPending) {
+       createCanvas.mutate("My Canvas", {
+         onSuccess: (data) => {
+           setSelectedCanvasId(data.id);
+         }
+       });
+     }
+   }, [isLoading, canvases.length, createCanvas.isPending]);
+ 
+   // Auto-save on element changes (debounced)
+   useEffect(() => {
+     if (!selectedCanvasId || elements.length === 0) return;
+     
+     const timeoutId = setTimeout(() => {
+       updateCanvas.mutate({ 
+         id: selectedCanvasId, 
+         data: { elements }
+       });
+     }, 2000); // 2 second debounce
+     
+     return () => clearTimeout(timeoutId);
+   }, [elements, selectedCanvasId]);
 
   const pushToHistory = useCallback((newElements: CanvasElement[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
