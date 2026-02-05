@@ -1,7 +1,9 @@
-import { cn } from "@/lib/utils";
-import { Search, Bell, Plus } from "lucide-react";
+ import { Search, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+ import { useProfile } from "@/hooks/useProfile";
+ import { useAuth } from "@/contexts/AuthContext";
+ import { useNavigate } from "react-router-dom";
 
 interface AppHeaderProps {
   title: string;
@@ -10,6 +12,22 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ title, subtitle, action }: AppHeaderProps) {
+   const { profile } = useProfile();
+   const { user } = useAuth();
+   const navigate = useNavigate();
+ 
+   const getInitials = () => {
+     if (profile?.full_name) {
+       return profile.full_name
+         .split(" ")
+         .map((n) => n[0])
+         .join("")
+         .toUpperCase()
+         .slice(0, 2);
+     }
+     return user?.email?.charAt(0).toUpperCase() || "U";
+   };
+ 
   return (
     <header className="h-16 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-40">
       <div className="h-full px-6 flex items-center justify-between">
@@ -43,9 +61,12 @@ export function AppHeader({ title, subtitle, action }: AppHeaderProps) {
           </Button>
           
           {/* Profile */}
-          <Avatar className="w-8 h-8">
-            <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=user" />
-            <AvatarFallback>U</AvatarFallback>
+           <Avatar 
+             className="w-8 h-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+             onClick={() => navigate("/settings")}
+           >
+             <AvatarImage src={profile?.avatar_url || undefined} />
+             <AvatarFallback>{getInitials()}</AvatarFallback>
           </Avatar>
         </div>
       </div>
