@@ -14,11 +14,20 @@ import {
   Users,
   Bot,
   Camera,
-  Check
+   Check,
+   Moon,
+   Sun,
+   Monitor,
+   Loader2,
+   LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+ import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+ import { useProfile } from "@/hooks/useProfile";
+ import { useAuth } from "@/contexts/AuthContext";
+ import { useTheme } from "@/contexts/ThemeContext";
+ import { useNavigate } from "react-router-dom";
 
 const tabs = [
   { id: "profile", label: "Profile", icon: User },
@@ -31,13 +40,21 @@ const tabs = [
 
 export default function Settings() {
   const { toast } = useToast();
+   const { profile, loading, updateProfile, uploadAvatar } = useProfile();
+   const { user, signOut } = useAuth();
+   const { theme, setTheme } = useTheme();
+   const navigate = useNavigate();
+   const fileInputRef = useRef<HTMLInputElement>(null);
+   
   const [activeTab, setActiveTab] = useState("profile");
-  const [profile, setProfile] = useState({
-    firstName: "Alex",
-    lastName: "Morgan",
-    email: "alex@proddy.com",
-    role: "Product Manager"
+   const [uploading, setUploading] = useState(false);
+   const [saving, setSaving] = useState(false);
+   
+   const [formData, setFormData] = useState({
+     fullName: "",
+     email: ""
   });
+   
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
@@ -53,18 +70,82 @@ export default function Settings() {
     meetingSummaries: true
   });
 
-  const saveProfile = () => {
-    toast({ title: "Profile saved", description: "Your changes have been saved successfully." });
+   // Initialize form data from profile
+   useEffect(() => {
+     if (profile) {
+       setFormData({
+         fullName: profile.full_name || "",
+         email: user?.email || ""
+       });
+     }
+   }, [profile, user]);
+ 
+   const handleAvatarClick = () => {
+     fileInputRef.current?.click();
   };
 
-  const saveNotifications = () => {
-    toast({ title: "Notifications updated", description: "Your notification preferences have been saved." });
+   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+     const file = e.target.files?.[0];
+     if (!file) return;
+ 
+     // Validate file type
+     if (!file.type.startsWith("image/")) {
+       toast({ title: "Error", description: "Please select an image file.", variant: "destructive" });
+       return;
+     }
+ 
+     // Validate file size (max 2MB)
+     if (file.size > 2 * 1024 * 1024) {
+       toast({ title: "Error", description: "Image must be less than 2MB.", variant: "destructive" });
+       return;
+     }
+ 
+     setUploading(true);
+     await uploadAvatar(file);
+     setUploading(false);
   };
 
-  const saveAISettings = () => {
-    toast({ title: "AI preferences updated", description: "Your AI settings have been saved." });
+   const saveProfile = async () => {
+     setSaving(true);
+     await updateProfile({ full_name: formData.fullName });
+     setSaving(false);
   };
 
+   const saveNotifications = () => {
+     toast({ title: "Notifications updated", description: "Your notification preferences have been saved." });
+   };
+ 
+   const saveAISettings = () => {
+     toast({ title: "AI preferences updated", description: "Your AI settings have been saved." });
+   };
+ 
+   const handleSignOut = async () => {
+     await signOut();
+     navigate("/");
+   };
+ 
+   const getInitials = () => {
+     if (formData.fullName) {
+       return formData.fullName
+         .split(" ")
+         .map((n) => n[0])
+         .join("")
+         .toUpperCase()
+         .slice(0, 2);
+     }
+     return user?.email?.charAt(0).toUpperCase() || "U";
+   };
+ 
+   if (loading) {
+     return (
+       <AppLayout>
+         <div className="flex items-center justify-center h-full">
+           <Loader2 className="w-8 h-8 animate-spin text-primary" />
+         </div>
+       </AppLayout>
+     );
+   }
+ 
   return (
     <AppLayout>
       <AppHeader 
@@ -107,17 +188,29 @@ export default function Settings() {
                   {/* Avatar */}
                   <div className="flex items-center gap-4">
                     <div className="relative">
-                      <Avatar className="w-20 h-20">
-                        <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=user" />
-                        <AvatarFallback>U</AvatarFallback>
+                       <Avatar className="w-20 h-20 cursor-pointer" onClick={handleAvatarClick}>
+                         <AvatarImage src={profile?.avatar_url || undefined} />
+                         <AvatarFallback className="text-xl">{getInitials()}</AvatarFallback>
                       </Avatar>
                       <Button 
                         size="icon" 
                         className="absolute bottom-0 right-0 w-8 h-8 rounded-full"
-                        onClick={() => toast({ title: "Upload avatar", description: "Avatar upload coming soon!" })}
+                         onClick={handleAvatarClick}
+                         disabled={uploading}
                       >
-                        <Camera className="w-4 h-4" />
+                         {uploading ? (
+                           <Loader2 className="w-4 h-4 animate-spin" />
+                         ) : (
+                           <Camera className="w-4 h-4" />
+                         )}
                       </Button>
+                       <input
+                         ref={fileInputRef}
+                         type="file"
+                         accept="image/*"
+                         className="hidden"
+                         onChange={handleFileChange}
+                       />
                     </div>
                     <div>
                       <p className="font-medium">Profile Picture</p>
@@ -127,47 +220,42 @@ export default function Settings() {
 
                   {/* Form Fields */}
                   <div className="grid gap-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="firstName">First Name</Label>
-                        <Input 
-                          id="firstName" 
-                          value={profile.firstName}
-                          onChange={(e) => setProfile(prev => ({ ...prev, firstName: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="lastName">Last Name</Label>
-                        <Input 
-                          id="lastName" 
-                          value={profile.lastName}
-                          onChange={(e) => setProfile(prev => ({ ...prev, lastName: e.target.value }))}
-                        />
-                      </div>
+                     <div className="space-y-2">
+                       <Label htmlFor="fullName">Full Name</Label>
+                       <Input 
+                         id="fullName" 
+                         value={formData.fullName}
+                         onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
+                         placeholder="Enter your full name"
+                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
                       <Input 
                         id="email" 
                         type="email" 
-                        value={profile.email}
-                        onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
+                         value={formData.email}
+                         disabled
+                         className="bg-muted"
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="role">Role</Label>
-                      <Input 
-                        id="role" 
-                        value={profile.role}
-                        onChange={(e) => setProfile(prev => ({ ...prev, role: e.target.value }))}
-                      />
+                       <p className="text-xs text-muted-foreground">Email cannot be changed</p>
                     </div>
                   </div>
 
-                  <Button onClick={saveProfile}>
-                    <Check className="w-4 h-4 mr-1" />
-                    Save Changes
-                  </Button>
+                   <div className="flex gap-3">
+                     <Button onClick={saveProfile} disabled={saving}>
+                       {saving ? (
+                         <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                       ) : (
+                         <Check className="w-4 h-4 mr-1" />
+                       )}
+                       Save Changes
+                     </Button>
+                     <Button variant="outline" onClick={handleSignOut}>
+                       <LogOut className="w-4 h-4 mr-1" />
+                       Sign Out
+                     </Button>
+                   </div>
                 </CardContent>
               </Card>
             )}
@@ -260,16 +348,26 @@ export default function Settings() {
                   <div>
                     <p className="font-medium text-sm mb-3">Theme</p>
                     <div className="flex gap-3">
-                      <Button variant="outline" onClick={() => toast({ title: "Theme", description: "Light mode active" })}>
+                       <Button 
+                         variant={theme === "light" ? "default" : "outline"} 
+                         onClick={() => setTheme("light")}
+                         className="flex items-center gap-2"
+                       >
+                         <Sun className="w-4 h-4" />
                         Light
                       </Button>
-                      <Button variant="outline" onClick={() => toast({ title: "Theme", description: "Dark mode coming soon!" })}>
+                       <Button 
+                         variant={theme === "dark" ? "default" : "outline"} 
+                         onClick={() => setTheme("dark")}
+                         className="flex items-center gap-2"
+                       >
+                         <Moon className="w-4 h-4" />
                         Dark
                       </Button>
-                      <Button variant="outline" onClick={() => toast({ title: "Theme", description: "System preference will be used" })}>
-                        System
-                      </Button>
                     </div>
+                     <p className="text-xs text-muted-foreground mt-2">
+                       Choose your preferred theme. Your preference will be saved automatically.
+                     </p>
                   </div>
                 </CardContent>
               </Card>
