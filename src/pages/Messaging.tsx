@@ -11,12 +11,16 @@ import {
   Search,
   Bot,
   MessageSquare,
-  Loader2
+  Loader2,
+  PanelLeftOpen,
+  X
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useMessages } from "@/hooks/useMessages";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +41,8 @@ export default function Messaging() {
   const [isChannelDialogOpen, setIsChannelDialogOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [customChannels, setCustomChannels] = useState<string[]>([]);
+  const [showChannels, setShowChannels] = useState(false);
+  const isMobile = useIsMobile();
 
   // Get unique channels from messages
   const channels = useMemo(() => {
@@ -105,93 +111,113 @@ export default function Messaging() {
     );
   }
 
+  const channelsList = (
+    <div className="flex flex-col h-full">
+      <div className="p-4 border-b">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background border">
+          <Search className="w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search channels..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-transparent border-none outline-none text-sm flex-1"
+          />
+        </div>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex items-center justify-between px-2 py-1 mb-2">
+          <span className="text-xs font-semibold text-muted-foreground uppercase">Channels</span>
+          <Dialog open={isChannelDialogOpen} onOpenChange={setIsChannelDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="w-6 h-6">
+                <Plus className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Channel</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="channelName">Channel Name</Label>
+                  <Input 
+                    id="channelName" 
+                    placeholder="e.g., announcements"
+                    value={newChannelName}
+                    onChange={(e) => setNewChannelName(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && createChannel()}
+                  />
+                </div>
+                <Button className="w-full" onClick={createChannel}>Create Channel</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+        
+        <ul className="space-y-0.5">
+          {filteredChannels.map((channel) => {
+            const unreadCount = messages.filter(m => m.channel === channel).length;
+            return (
+              <li key={channel}>
+                <button
+                  onClick={() => { setSelectedChannel(channel); if (isMobile) setShowChannels(false); }}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors",
+                    selectedChannel === channel
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  )}
+                >
+                  <Hash className="w-4 h-4" />
+                  <span className="flex-1 text-left">{channel}</span>
+                  {unreadCount > 0 && selectedChannel !== channel && (
+                    <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+
   return (
     <AppLayout>
-      <div className="flex h-screen">
-        {/* Channels Sidebar */}
-        <div className="w-64 border-r bg-secondary/20 flex flex-col">
-          <div className="p-4 border-b">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background border">
-              <Search className="w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search channels..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent border-none outline-none text-sm flex-1"
-              />
-            </div>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-2">
-            <div className="flex items-center justify-between px-2 py-1 mb-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase">Channels</span>
-              <Dialog open={isChannelDialogOpen} onOpenChange={setIsChannelDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="w-6 h-6">
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create Channel</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="channelName">Channel Name</Label>
-                      <Input 
-                        id="channelName" 
-                        placeholder="e.g., announcements"
-                        value={newChannelName}
-                        onChange={(e) => setNewChannelName(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && createChannel()}
-                      />
-                    </div>
-                    <Button className="w-full" onClick={createChannel}>Create Channel</Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-            
-            <ul className="space-y-0.5">
-              {filteredChannels.map((channel) => {
-                const unreadCount = messages.filter(m => m.channel === channel).length;
-                return (
-                  <li key={channel}>
-                    <button
-                      onClick={() => setSelectedChannel(channel)}
-                      className={cn(
-                        "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors",
-                        selectedChannel === channel
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                      )}
-                    >
-                      <Hash className="w-4 h-4" />
-                      <span className="flex-1 text-left">{channel}</span>
-                      {unreadCount > 0 && selectedChannel !== channel && (
-                        <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+      <div className="flex h-[100dvh]">
+        {/* Desktop Channels Sidebar */}
+        <div className="hidden md:flex w-64 border-r bg-secondary/20 flex-col">
+          {channelsList}
         </div>
 
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
+        {/* Mobile Channels Sheet */}
+        {isMobile && (
+          <Sheet open={showChannels} onOpenChange={setShowChannels}>
+            <SheetContent side="left" className="w-72 p-0">
+              <SheetTitle className="sr-only">Channels</SheetTitle>
+              {channelsList}
+            </SheetContent>
+          </Sheet>
+        )}
+
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Channel Header */}
           <div className="h-14 border-b px-4 flex items-center justify-between bg-card/50 backdrop-blur-sm">
             <div className="flex items-center gap-2">
+              {isMobile && (
+                <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => setShowChannels(true)}>
+                  <PanelLeftOpen className="w-5 h-5" />
+                </Button>
+              )}
               <Hash className="w-5 h-5 text-muted-foreground" />
               <span className="font-semibold">{selectedChannel}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={summarizeChannel}>
+              <Button variant="outline" size="sm" onClick={summarizeChannel} className="hidden sm:flex">
                 <Bot className="w-4 h-4 mr-1" />
                 AI Summary
               </Button>

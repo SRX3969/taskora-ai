@@ -12,7 +12,9 @@
    Loader2,
    Plus,
    Trash2,
-   MessageCircle
+   MessageCircle,
+   PanelLeftOpen,
+   X
  } from "lucide-react";
  import { useState, useRef, useEffect } from "react";
  import { cn } from "@/lib/utils";
@@ -20,6 +22,8 @@
  import { useAIChat, AIMessage } from "@/hooks/useAIChat";
  import { format } from "date-fns";
  import ReactMarkdown from "react-markdown";
+ import { useIsMobile } from "@/hooks/use-mobile";
+ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
  
  interface Message {
    id?: string;
@@ -126,11 +130,13 @@
  }
  
  export default function AIAssistant() {
-   const [input, setInput] = useState("");
-   const [messages, setMessages] = useState<Message[]>([]);
-   const [isTyping, setIsTyping] = useState(false);
-   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [showConversations, setShowConversations] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
    const { toast } = useToast();
    const { 
      conversations, 
@@ -277,75 +283,95 @@
      sendMessage(text);
    };
  
-   return (
-     <AppLayout>
-       <div className="flex h-screen">
-         {/* Conversations Sidebar */}
-         <div className="w-64 border-r bg-secondary/20 flex flex-col">
-           <div className="p-4 border-b">
-             <Button className="w-full" onClick={startNewChat} disabled={createConversation.isPending}>
-               <Plus className="w-4 h-4 mr-2" />
-               New Chat
-             </Button>
-           </div>
-           
-           <div className="flex-1 overflow-y-auto p-2">
-             {conversationsLoading ? (
-               <div className="flex justify-center py-4">
-                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-               </div>
-             ) : conversations.length === 0 ? (
-               <div className="text-center py-8 text-muted-foreground text-sm">
-                 <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                 No conversations yet
-               </div>
-             ) : (
-               <ul className="space-y-1">
-                 {conversations.map((convo) => (
-                   <li key={convo.id}>
-                     <button
-                       onClick={() => selectConversation(convo.id)}
-                       className={cn(
-                         "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors group",
-                         currentConversationId === convo.id
-                           ? "bg-primary/10 text-primary font-medium"
-                           : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                       )}
-                     >
-                       <MessageCircle className="w-4 h-4 flex-shrink-0" />
-                       <span className="flex-1 text-left truncate">{convo.title}</span>
-                       <button
-                         onClick={(e) => handleDeleteConversation(convo.id, e)}
-                         className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded"
-                       >
-                         <Trash2 className="w-3 h-3 text-destructive" />
-                       </button>
-                     </button>
-                   </li>
-                 ))}
-               </ul>
-             )}
-           </div>
-         </div>
+  const conversationsList = (
+    <div className="flex flex-col h-full">
+      <div className="p-4 border-b border-sidebar-border">
+        <Button className="w-full" onClick={startNewChat} disabled={createConversation.isPending}>
+          <Plus className="w-4 h-4 mr-2" />
+          New Chat
+        </Button>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-2">
+        {conversationsLoading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : conversations.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            No conversations yet
+          </div>
+        ) : (
+          <ul className="space-y-1">
+            {conversations.map((convo) => (
+              <li key={convo.id}>
+                <button
+                  onClick={() => { selectConversation(convo.id); if (isMobile) setShowConversations(false); }}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors group",
+                    currentConversationId === convo.id
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  )}
+                >
+                  <MessageCircle className="w-4 h-4 flex-shrink-0" />
+                  <span className="flex-1 text-left truncate">{convo.title}</span>
+                  <button
+                    onClick={(e) => handleDeleteConversation(convo.id, e)}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded"
+                  >
+                    <Trash2 className="w-3 h-3 text-destructive" />
+                  </button>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <AppLayout>
+      <div className="flex h-[100dvh]">
+        {/* Desktop Conversations Sidebar */}
+        <div className="hidden md:flex w-64 border-r bg-secondary/20 flex-col">
+          {conversationsList}
+        </div>
+
+        {/* Mobile Conversations Sheet */}
+        {isMobile && (
+          <Sheet open={showConversations} onOpenChange={setShowConversations}>
+            <SheetContent side="left" className="w-72 p-0">
+              <SheetTitle className="sr-only">Conversations</SheetTitle>
+              {conversationsList}
+            </SheetContent>
+          </Sheet>
+        )}
  
-         {/* Main Chat Area */}
-         <div className="flex-1 flex flex-col">
-           <div className="h-16 border-b bg-card/50 backdrop-blur-sm flex items-center px-6">
-             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-                 <Bot className="w-5 h-5 text-primary-foreground" />
-               </div>
-               <div>
-                 <h1 className="text-lg font-semibold">AI Assistant</h1>
-                 <p className="text-sm text-muted-foreground">Powered by Lovable AI</p>
-               </div>
-             </div>
-           </div>
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="h-14 md:h-16 border-b bg-card/50 backdrop-blur-sm flex items-center px-4 md:px-6 gap-3">
+            {isMobile && (
+              <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => setShowConversations(true)}>
+                <PanelLeftOpen className="w-5 h-5" />
+              </Button>
+            )}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
+                <Bot className="w-4 h-4 md:w-5 md:h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-base md:text-lg font-semibold">AI Assistant</h1>
+                <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">Powered by Lovable AI</p>
+              </div>
+            </div>
+          </div>
            
            <div className="flex-1 overflow-hidden flex flex-col">
              {/* Chat Messages */}
-             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-               {messages.length === 0 && !isTyping ? (
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
+              {messages.length === 0 && !isTyping ? (
                  <div className="flex flex-col items-center justify-center h-full text-center">
                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center mb-4">
                      <Bot className="w-8 h-8 text-primary-foreground" />
@@ -438,29 +464,29 @@
              )}
  
              {/* Input */}
-             <div className="p-4 border-t bg-card/50">
-               <div className="flex items-center gap-2 p-2 rounded-xl border bg-background max-w-4xl mx-auto">
-                 <input
-                   type="text"
-                   placeholder="Ask me anything about productivity..."
-                   value={input}
-                   onChange={(e) => setInput(e.target.value)}
-                   onKeyPress={handleKeyPress}
-                   disabled={isTyping}
-                   className="flex-1 bg-transparent border-none outline-none text-sm px-2"
-                 />
-                 <Button 
-                   size="icon" 
-                   onClick={() => sendMessage(input)}
-                   disabled={!input.trim() || isTyping}
-                 >
-                   <Send className="w-4 h-4" />
-                 </Button>
-               </div>
-               <p className="text-xs text-muted-foreground text-center mt-2">
-                 AI can make mistakes. Verify important information.
-               </p>
-             </div>
+            <div className="p-3 md:p-4 border-t bg-card/50">
+              <div className="flex items-center gap-2 p-2 rounded-xl border bg-background max-w-4xl mx-auto">
+                <input
+                  type="text"
+                  placeholder="Ask me anything..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  disabled={isTyping}
+                  className="flex-1 bg-transparent border-none outline-none text-sm px-2 min-w-0"
+                />
+                <Button 
+                  size="icon" 
+                  onClick={() => sendMessage(input)}
+                  disabled={!input.trim() || isTyping}
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground text-center mt-2 hidden sm:block">
+                AI can make mistakes. Verify important information.
+              </p>
+            </div>
            </div>
          </div>
        </div>

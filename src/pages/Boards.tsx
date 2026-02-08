@@ -124,7 +124,7 @@ export default function Boards() {
         }
       />
       
-      <div className="p-6 overflow-x-auto">
+      <div className="p-4 md:p-6 overflow-x-auto">
         {totalCards === 0 && columns.length <= 3 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Layout className="w-16 h-16 text-muted-foreground/30 mb-4" />

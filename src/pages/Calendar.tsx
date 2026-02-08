@@ -111,10 +111,10 @@ export default function CalendarPage() {
         }
       />
       
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {/* Calendar Navigation */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mb-4 md:mb-6 gap-2">
+          <div className="flex items-center gap-1 md:gap-2">
             <Button variant="outline" size="icon" onClick={() => setWeekOffset(prev => prev - 1)}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -138,7 +138,7 @@ export default function CalendarPage() {
         </div>
 
         {/* Week View */}
-        <div className="border rounded-xl overflow-hidden bg-card">
+        <div className="border rounded-xl overflow-x-auto bg-card">
           {/* Days Header */}
           <div className="grid grid-cols-8 border-b">
             <div className="p-3 text-center text-sm text-muted-foreground border-r" />

@@ -153,28 +153,29 @@ export default function Tasks() {
         }
       />
       
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {/* Filters */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-2 md:gap-3 mb-6 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
           <Button 
             variant={filter === null ? "secondary" : "outline"} 
             size="sm"
             onClick={() => setFilter(null)}
+            className="flex-shrink-0"
           >
             <Filter className="w-4 h-4 mr-1" />
             All ({tasks.length})
           </Button>
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-shrink-0">
             {Object.entries(statusConfig).map(([key, config]) => (
               <Button 
                 key={key} 
                 variant={filter === key ? "secondary" : "ghost"} 
                 size="sm" 
-                className="text-muted-foreground"
+                className="text-muted-foreground flex-shrink-0"
                 onClick={() => setFilter(filter === key ? null : key)}
               >
                 <config.icon className="w-4 h-4 mr-1" />
-                {config.label} ({tasks.filter(t => t.status === key).length})
+                <span className="hidden sm:inline">{config.label}</span> ({tasks.filter(t => t.status === key).length})
               </Button>
             ))}
           </div>
