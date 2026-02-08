@@ -16,14 +16,22 @@ import {
   LogOut,
   Moon,
   Sun,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, createContext, useContext } from "react";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -41,9 +49,16 @@ const bottomNavItems = [
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
-export function AppSidebar() {
+// Context to share mobile menu state
+const MobileMenuContext = createContext<{
+  mobileOpen: boolean;
+  setMobileOpen: (open: boolean) => void;
+}>({ mobileOpen: false, setMobileOpen: () => {} });
+
+export const useMobileMenu = () => useContext(MobileMenuContext);
+
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
   const { signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -56,19 +71,7 @@ export function AppSidebar() {
   };
 
   return (
-    <aside
-      className={cn(
-        "fixed left-0 top-0 h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col transition-all duration-300 z-50",
-        collapsed ? "w-16" : "w-64"
-      )}
-    >
-      {/* Logo */}
-      <div className="h-16 flex items-center px-4 border-b border-sidebar-border">
-        <Link to="/dashboard" className="flex items-center gap-3">
-          <Logo size="sm" showText={!collapsed} />
-        </Link>
-      </div>
-
+    <>
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <ul className="space-y-1">
@@ -78,6 +81,7 @@ export function AppSidebar() {
               <li key={item.href}>
                 <Link
                   to={item.href}
+                  onClick={onNavigate}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                     isActive
@@ -86,7 +90,7 @@ export function AppSidebar() {
                   )}
                 >
                   <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
-                  {!collapsed && <span>{item.label}</span>}
+                  <span>{item.label}</span>
                 </Link>
               </li>
             );
@@ -100,21 +104,18 @@ export function AppSidebar() {
         <Button
           variant="ghost"
           size="sm"
-          className={cn(
-            "w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-            collapsed && "justify-center"
-          )}
+          className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
           onClick={toggleTheme}
         >
           {theme === "light" ? (
             <>
               <Moon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span className="ml-3">Dark Mode</span>}
+              <span className="ml-3">Dark Mode</span>
             </>
           ) : (
             <>
               <Sun className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span className="ml-3">Light Mode</span>}
+              <span className="ml-3">Light Mode</span>
             </>
           )}
         </Button>
@@ -125,16 +126,16 @@ export function AppSidebar() {
             <Link
               key={item.href}
               to={item.href}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                collapsed && "justify-center"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
               )}
             >
               <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
-              {!collapsed && <span>{item.label}</span>}
+              <span>{item.label}</span>
             </Link>
           );
         })}
@@ -143,21 +144,92 @@ export function AppSidebar() {
         <Button
           variant="ghost"
           size="sm"
-          className={cn(
-            "w-full justify-start text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10",
-            collapsed && "justify-center"
-          )}
+          className="w-full justify-start text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10"
           onClick={handleSignOut}
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span className="ml-3">Sign Out</span>}
+          <span className="ml-3">Sign Out</span>
         </Button>
-        
-        {/* Collapse Toggle */}
+      </div>
+    </>
+  );
+}
+
+export function AppSidebar() {
+  const [collapsed, setCollapsed] = useState(false);
+  const location = useLocation();
+
+  return (
+    <aside
+      className={cn(
+        "fixed left-0 top-0 h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex-col transition-all duration-300 z-50 hidden md:flex",
+        collapsed ? "w-16" : "w-64"
+      )}
+    >
+      {/* Logo */}
+      <div className="h-16 flex items-center px-4 border-b border-sidebar-border">
+        <Link to="/dashboard" className="flex items-center gap-3">
+          <Logo size="sm" showText={!collapsed} />
+        </Link>
+      </div>
+
+      {collapsed ? (
+        <>
+          {/* Collapsed nav with icons only */}
+          <nav className="flex-1 px-2 py-4 overflow-y-auto">
+            <ul className="space-y-1">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <li key={item.href}>
+                    <Link
+                      to={item.href}
+                      title={item.label}
+                      className={cn(
+                        "flex items-center justify-center p-2.5 rounded-lg transition-all duration-200",
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-primary"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      )}
+                    >
+                      <item.icon className={cn("w-5 h-5", isActive && "text-sidebar-primary")} />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+          <div className="px-2 py-4 border-t border-sidebar-border space-y-1">
+            {bottomNavItems.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  title={item.label}
+                  className={cn(
+                    "flex items-center justify-center p-2.5 rounded-lg transition-all duration-200",
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-primary"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                  )}
+                >
+                  <item.icon className={cn("w-5 h-5", isActive && "text-sidebar-primary")} />
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <SidebarContent />
+      )}
+
+      {/* Collapse Toggle */}
+      <div className="px-3 pb-3">
         <Button
           variant="ghost"
           size="sm"
-          className="w-full mt-2 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          className="w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? (
@@ -174,20 +246,43 @@ export function AppSidebar() {
   );
 }
 
+function MobileSidebar({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="left" className="w-72 p-0 bg-sidebar text-sidebar-foreground border-sidebar-border">
+        <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+        {/* Logo */}
+        <div className="h-16 flex items-center px-4 border-b border-sidebar-border">
+          <Link to="/dashboard" className="flex items-center gap-3" onClick={() => onOpenChange(false)}>
+            <Logo size="sm" />
+          </Link>
+        </div>
+        <SidebarContent onNavigate={() => onOpenChange(false)} />
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isMobile = useIsMobile();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppSidebar />
-      <main
-        className={cn(
-          "transition-all duration-300",
-          sidebarCollapsed ? "ml-16" : "ml-64"
-        )}
-      >
-        {children}
-      </main>
-    </div>
+    <MobileMenuContext.Provider value={{ mobileOpen, setMobileOpen }}>
+      <div className="min-h-screen bg-background">
+        {/* Desktop sidebar */}
+        <AppSidebar />
+        {/* Mobile sidebar */}
+        {isMobile && <MobileSidebar open={mobileOpen} onOpenChange={setMobileOpen} />}
+        <main
+          className={cn(
+            "transition-all duration-300",
+            isMobile ? "ml-0" : "ml-64"
+          )}
+        >
+          {children}
+        </main>
+      </div>
+    </MobileMenuContext.Provider>
   );
 }

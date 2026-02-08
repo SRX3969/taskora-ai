@@ -390,8 +390,8 @@ export default function Canvas() {
   return (
     <AppLayout>
       {/* Canvas Toolbar */}
-      <div className="h-14 border-b bg-card/50 backdrop-blur-sm flex items-center justify-between px-4">
-        <div className="flex items-center gap-2">
+      <div className="border-b bg-card/50 backdrop-blur-sm flex flex-wrap items-center justify-between px-3 md:px-4 py-2 md:py-0 md:h-14 gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Canvas Selector */}
           <select 
             className="h-8 px-2 text-sm border rounded-md bg-background"

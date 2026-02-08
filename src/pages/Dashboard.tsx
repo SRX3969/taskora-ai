@@ -50,9 +50,9 @@ export default function Dashboard() {
         subtitle="Here's what's happening today"
       />
       
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         {/* Stats Grid */}
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <Card 
             variant="elevated" 
             className="animate-fade-up cursor-pointer hover:shadow-lg transition-shadow"

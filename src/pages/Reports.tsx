@@ -208,9 +208,9 @@ export default function Reports() {
         }
       />
       
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         {/* Time Range Selector */}
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center overflow-x-auto pb-1">
           {timeRanges.map(range => (
             <Button 
               key={range.id}
@@ -254,7 +254,7 @@ export default function Reports() {
         {!isLoading && (
           <>
             {/* Stats Grid */}
-            <div className="grid md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
               {statCards.map((stat, index) => (
                 <Card 
                   key={stat.title} 

@@ -153,17 +153,17 @@ export default function Settings() {
         subtitle="Manage your account and preferences"
       />
       
-      <div className="p-6">
-        <div className="flex gap-6">
-          {/* Sidebar Navigation */}
-          <div className="w-48 flex-shrink-0">
-            <nav className="space-y-1">
+      <div className="p-4 md:p-6">
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Tab Navigation - horizontal scroll on mobile, vertical sidebar on desktop */}
+          <div className="md:w-48 flex-shrink-0">
+            <nav className="flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0",
                     activeTab === tab.id
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-secondary hover:text-foreground"

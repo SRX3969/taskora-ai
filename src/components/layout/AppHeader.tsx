@@ -1,9 +1,11 @@
- import { Search, Bell } from "lucide-react";
+import { Search, Bell, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
- import { useProfile } from "@/hooks/useProfile";
- import { useAuth } from "@/contexts/AuthContext";
- import { useNavigate } from "react-router-dom";
+import { useProfile } from "@/hooks/useProfile";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useMobileMenu } from "@/components/layout/AppLayout";
 
 interface AppHeaderProps {
   title: string;
@@ -12,34 +14,44 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ title, subtitle, action }: AppHeaderProps) {
-   const { profile } = useProfile();
-   const { user } = useAuth();
-   const navigate = useNavigate();
- 
-   const getInitials = () => {
-     if (profile?.full_name) {
-       return profile.full_name
-         .split(" ")
-         .map((n) => n[0])
-         .join("")
-         .toUpperCase()
-         .slice(0, 2);
-     }
-     return user?.email?.charAt(0).toUpperCase() || "U";
-   };
- 
+  const { profile } = useProfile();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const { setMobileOpen } = useMobileMenu();
+
+  const getInitials = () => {
+    if (profile?.full_name) {
+      return profile.full_name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return user?.email?.charAt(0).toUpperCase() || "U";
+  };
+
   return (
     <header className="h-16 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-      <div className="h-full px-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">{title}</h1>
-          {subtitle && (
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+      <div className="h-full px-4 md:px-6 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Mobile hamburger */}
+          {isMobile && (
+            <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => setMobileOpen(true)}>
+              <Menu className="w-5 h-5" />
+            </Button>
           )}
+          <div className="min-w-0">
+            <h1 className="text-lg md:text-xl font-semibold truncate">{title}</h1>
+            {subtitle && (
+              <p className="text-xs md:text-sm text-muted-foreground truncate">{subtitle}</p>
+            )}
+          </div>
         </div>
         
-        <div className="flex items-center gap-4">
-          {/* Search */}
+        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+          {/* Search - hidden on mobile */}
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 border border-border/50">
             <Search className="w-4 h-4 text-muted-foreground" />
             <input
@@ -61,12 +73,12 @@ export function AppHeader({ title, subtitle, action }: AppHeaderProps) {
           </Button>
           
           {/* Profile */}
-           <Avatar 
-             className="w-8 h-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
-             onClick={() => navigate("/settings")}
-           >
-             <AvatarImage src={profile?.avatar_url || undefined} />
-             <AvatarFallback>{getInitials()}</AvatarFallback>
+          <Avatar 
+            className="w-8 h-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+            onClick={() => navigate("/settings")}
+          >
+            <AvatarImage src={profile?.avatar_url || undefined} />
+            <AvatarFallback>{getInitials()}</AvatarFallback>
           </Avatar>
         </div>
       </div>

@@ -111,9 +111,9 @@ export default function Notes() {
         }
       />
       
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {/* Search and Filters */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4 mb-6">
           <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50 border">
             <Search className="w-4 h-4 text-muted-foreground" />
             <input
@@ -128,6 +128,7 @@ export default function Notes() {
             variant={showStarredOnly ? "default" : "outline"} 
             size="sm"
             onClick={() => setShowStarredOnly(!showStarredOnly)}
+            className="flex-shrink-0"
           >
             <Star className={cn("w-4 h-4 mr-1", showStarredOnly && "fill-current")} />
             Starred ({notes.filter(n => n.is_starred).length})
