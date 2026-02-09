@@ -316,3 +316,6 @@ export default function Notes() {
           </div>
         </DialogContent>
       </Dialog>
+    </AppLayout>
+  );
+}
