@@ -334,7 +334,7 @@
 
   return (
     <AppLayout>
-      <div className="flex h-[100dvh]">
+      <div className={cn("flex", isMobile ? "h-[calc(100dvh-3.5rem)]" : "h-[100dvh]")}>
         {/* Desktop Conversations Sidebar */}
         <div className="hidden md:flex w-64 border-r bg-secondary/20 flex-col">
           {conversationsList}
