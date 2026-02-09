@@ -32,6 +32,7 @@ import {
   SheetTrigger,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { BottomNav } from "@/components/layout/BottomNav";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -277,11 +278,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <main
           className={cn(
             "transition-all duration-300",
-            isMobile ? "ml-0" : "ml-64"
+            isMobile ? "ml-0 pb-14" : "ml-64"
           )}
         >
           {children}
         </main>
+        {isMobile && <BottomNav />}
       </div>
     </MobileMenuContext.Provider>
   );
