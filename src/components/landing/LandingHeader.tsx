@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
@@ -9,6 +9,15 @@ export function LandingHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user } = useAuth();
 
+  const scrollToSection = (e: React.MouseEvent, sectionId: string) => {
+    e.preventDefault();
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+    setMobileMenuOpen(false);
+  };
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass border-b">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -18,15 +27,15 @@ export function LandingHeader() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-8">
-          <Link to="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <a href="#features" onClick={(e) => scrollToSection(e, "features")} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
             Features
-          </Link>
-          <Link to="#ai" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          </a>
+          <a href="#ai" onClick={(e) => scrollToSection(e, "ai")} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
             AI Assistant
-          </Link>
-          <Link to="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          </a>
+          <a href="#pricing" onClick={(e) => scrollToSection(e, "pricing")} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
             Pricing
-          </Link>
+          </a>
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
@@ -59,27 +68,27 @@ export function LandingHeader() {
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-16 left-0 right-0 bg-background border-b animate-fade-in">
           <nav className="container mx-auto px-4 py-4 flex flex-col gap-4">
-            <Link 
-              to="#features" 
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
+            <a 
+              href="#features"
+              onClick={(e) => scrollToSection(e, "features")}
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               Features
-            </Link>
-            <Link 
-              to="#ai" 
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
+            </a>
+            <a 
+              href="#ai"
+              onClick={(e) => scrollToSection(e, "ai")}
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               AI Assistant
-            </Link>
-            <Link 
-              to="#pricing" 
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
+            </a>
+            <a 
+              href="#pricing"
+              onClick={(e) => scrollToSection(e, "pricing")}
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               Pricing
-            </Link>
+            </a>
             <div className="flex flex-col gap-2 pt-2 border-t">
               {user ? (
                 <Button variant="hero" asChild>
