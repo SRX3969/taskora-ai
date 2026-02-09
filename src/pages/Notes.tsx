@@ -85,8 +85,15 @@ export default function Notes() {
     setIsDialogOpen(false);
   };
 
-  const openNote = (noteTitle: string) => {
-    toast({ title: "Opening note", description: noteTitle });
+  const openNote = (note: typeof notes[0]) => {
+    setEditingNote({ id: note.id, title: note.title, content: note.content || "" });
+  };
+
+  const saveEditingNote = () => {
+    if (!editingNote) return;
+    updateNote.mutate({ id: editingNote.id, title: editingNote.title, content: editingNote.content });
+    toast({ title: "Note saved" });
+    setEditingNote(null);
   };
 
   if (isLoading) {
