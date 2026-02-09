@@ -221,7 +221,7 @@ export default function Messaging() {
                 <Bot className="w-4 h-4 mr-1" />
                 AI Summary
               </Button>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" onClick={summarizeChannel}>
                 <MoreVertical className="w-5 h-5" />
               </Button>
             </div>

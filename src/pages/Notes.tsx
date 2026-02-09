@@ -164,7 +164,7 @@ export default function Notes() {
                 variant="interactive"
                 className="animate-fade-up group cursor-pointer"
                 style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => openNote(note.title)}
+                onClick={() => openNote(note)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
