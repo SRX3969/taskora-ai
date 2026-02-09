@@ -280,6 +280,39 @@ export default function Notes() {
           </div>
         </DialogContent>
       </Dialog>
-    </AppLayout>
-  );
-}
+
+      {/* Edit Note Dialog */}
+      <Dialog open={!!editingNote} onOpenChange={(open) => { if (!open) setEditingNote(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Note</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="editNoteTitle">Title</Label>
+              <Input 
+                id="editNoteTitle" 
+                value={editingNote?.title || ""}
+                onChange={(e) => setEditingNote(prev => prev ? { ...prev, title: e.target.value } : null)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editNoteContent">Content</Label>
+              <Textarea 
+                id="editNoteContent" 
+                rows={8}
+                value={editingNote?.content || ""}
+                onChange={(e) => setEditingNote(prev => prev ? { ...prev, content: e.target.value } : null)}
+              />
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={saveEditingNote}
+              disabled={updateNote.isPending}
+            >
+              {updateNote.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
