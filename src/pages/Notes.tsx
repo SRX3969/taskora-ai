@@ -46,6 +46,7 @@ export default function Notes() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<{ id: string; title: string; content: string } | null>(null);
   const [newNote, setNewNote] = useState({ title: "", content: "" });
 
   const filteredNotes = notes
