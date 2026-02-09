@@ -3,8 +3,11 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Play } from "lucide-react";
 import { Link } from "react-router-dom";
 import heroImage from "@/assets/hero-illustration.png";
+import { useToast } from "@/hooks/use-toast";
 
 export function HeroSection() {
+  const { toast } = useToast();
+
   return (
     <section className="relative pt-32 pb-20 overflow-hidden">
       {/* Background gradient */}
@@ -38,7 +41,11 @@ export function HeroSection() {
                 <ArrowRight className="w-5 h-5 ml-1" />
               </Link>
             </Button>
-            <Button variant="hero-outline" size="xl">
+            <Button 
+              variant="hero-outline" 
+              size="xl"
+              onClick={() => toast({ title: "Coming soon", description: "Demo video is being prepared. Sign up to get notified!" })}
+            >
               <Play className="w-5 h-5 mr-1" />
               Watch Demo
             </Button>

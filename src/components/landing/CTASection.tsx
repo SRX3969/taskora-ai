@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 export function CTASection() {
+  const { toast } = useToast();
+
   return (
     <section className="py-20">
       <div className="container mx-auto px-4">
@@ -24,7 +27,11 @@ export function CTASection() {
                     <ArrowRight className="w-5 h-5 ml-1" />
                   </Link>
                 </Button>
-                <Button variant="outline" size="xl">
+                <Button 
+                  variant="outline" 
+                  size="xl"
+                  onClick={() => toast({ title: "Contact Sales", description: "Sales contact form coming soon! For now, sign up for free to get started." })}
+                >
                   Talk to Sales
                 </Button>
               </div>

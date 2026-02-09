@@ -46,6 +46,7 @@ export default function Notes() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<{ id: string; title: string; content: string } | null>(null);
   const [newNote, setNewNote] = useState({ title: "", content: "" });
 
   const filteredNotes = notes
@@ -84,8 +85,15 @@ export default function Notes() {
     setIsDialogOpen(false);
   };
 
-  const openNote = (noteTitle: string) => {
-    toast({ title: "Opening note", description: noteTitle });
+  const openNote = (note: typeof notes[0]) => {
+    setEditingNote({ id: note.id, title: note.title, content: note.content || "" });
+  };
+
+  const saveEditingNote = () => {
+    if (!editingNote) return;
+    updateNote.mutate({ id: editingNote.id, title: editingNote.title, content: editingNote.content });
+    toast({ title: "Note saved" });
+    setEditingNote(null);
   };
 
   if (isLoading) {
@@ -156,7 +164,7 @@ export default function Notes() {
                 variant="interactive"
                 className="animate-fade-up group cursor-pointer"
                 style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => openNote(note.title)}
+                onClick={() => openNote(note)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
@@ -268,6 +276,42 @@ export default function Notes() {
             >
               {createNote.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Create Note
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Note Dialog */}
+      <Dialog open={!!editingNote} onOpenChange={(open) => { if (!open) setEditingNote(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Note</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="editNoteTitle">Title</Label>
+              <Input 
+                id="editNoteTitle" 
+                value={editingNote?.title || ""}
+                onChange={(e) => setEditingNote(prev => prev ? { ...prev, title: e.target.value } : null)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editNoteContent">Content</Label>
+              <Textarea 
+                id="editNoteContent" 
+                rows={8}
+                value={editingNote?.content || ""}
+                onChange={(e) => setEditingNote(prev => prev ? { ...prev, content: e.target.value } : null)}
+              />
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={saveEditingNote}
+              disabled={updateNote.isPending}
+            >
+              {updateNote.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Save Changes
             </Button>
           </div>
         </DialogContent>

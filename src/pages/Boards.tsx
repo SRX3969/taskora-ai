@@ -157,7 +157,7 @@ export default function Boards() {
                       {column.cards.length}
                     </span>
                   </div>
-                  <Button variant="ghost" size="icon" className="w-7 h-7">
+                  <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => toast({ title: column.title, description: `${column.cards.length} cards in this column` })}>
                     <MoreHorizontal className="w-4 h-4" />
                   </Button>
                 </div>
