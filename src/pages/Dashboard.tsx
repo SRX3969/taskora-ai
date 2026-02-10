@@ -3,35 +3,52 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  CheckSquare, 
-  Calendar, 
-  MessageSquare, 
+import {
+  CheckSquare,
+  Calendar,
+  MessageSquare,
   Bot,
   ArrowRight,
   TrendingUp,
   Clock,
   Users,
   Plus,
-  Loader2
+  Loader2,
+  Sparkles,
+  Lightbulb,
+  Zap,
+  BarChart3,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTasks } from "@/hooks/useTasks";
 import { useMessages } from "@/hooks/useMessages";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
-import { format } from "date-fns";
+import { useProfile } from "@/hooks/useProfile";
+import { format, isToday, isTomorrow } from "date-fns";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { tasks, isLoading: tasksLoading } = useTasks();
   const { messages, isLoading: messagesLoading } = useMessages();
   const { events, isLoading: eventsLoading } = useCalendarEvents();
-  
+  const { profile } = useProfile();
+
   const isLoading = tasksLoading || messagesLoading || eventsLoading;
-  const completedCount = tasks.filter(t => t.status === "done").length;
-  const todaysTasks = tasks.filter(t => t.status !== "done").slice(0, 5);
+  const completedCount = tasks.filter((t) => t.status === "done").length;
+  const activeTasks = tasks.filter((t) => t.status !== "done");
+  const highPriorityTasks = activeTasks.filter((t) => t.priority === "high");
+  const todaysTasks = activeTasks.slice(0, 5);
   const recentMessages = messages.slice(-5).reverse();
   const upcomingEvents = events.slice(0, 5);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const userName = profile?.full_name?.split(" ")[0] || "there";
 
   if (isLoading) {
     return (
@@ -45,163 +62,262 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <AppHeader 
-        title="Welcome to Taskora AI" 
-        subtitle="Here's what's happening today"
+      <AppHeader
+        title={`${getGreeting()}, ${userName}`}
+        subtitle={format(new Date(), "EEEE, MMMM d, yyyy")}
       />
-      
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          <Card 
-            variant="elevated" 
-            className="animate-fade-up cursor-pointer hover:shadow-lg transition-shadow"
+
+      <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+        {/* Stats Strip */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <Card
+            variant="interactive"
+            className="animate-fade-up group"
             onClick={() => navigate("/tasks")}
           >
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Tasks</p>
-                  <p className="text-2xl font-bold">{tasks.length - completedCount}</p>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
                   <CheckSquare className="w-5 h-5 text-primary" />
                 </div>
+                {highPriorityTasks.length > 0 && (
+                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                    {highPriorityTasks.length} urgent
+                  </Badge>
+                )}
               </div>
-              <div className="flex items-center gap-1 mt-2 text-sm text-success">
+              <p className="text-2xl font-bold">{activeTasks.length}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Active tasks</p>
+              <div className="flex items-center gap-1 mt-2 text-xs text-success">
                 <TrendingUp className="w-3 h-3" />
-                <span>{completedCount} completed</span>
+                <span>{completedCount} done</span>
               </div>
             </CardContent>
           </Card>
-          
-          <Card 
-            variant="elevated" 
-            className="animate-fade-up animation-delay-100 cursor-pointer hover:shadow-lg transition-shadow"
+
+          <Card
+            variant="interactive"
+            className="animate-fade-up animation-delay-100 group"
             onClick={() => navigate("/calendar")}
           >
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Events</p>
-                  <p className="text-2xl font-bold">{events.length}</p>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/15 transition-colors">
                   <Calendar className="w-5 h-5 text-accent" />
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
+              <p className="text-2xl font-bold">{events.length}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Upcoming events</p>
+              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
                 <Clock className="w-3 h-3" />
-                <span>{events.length > 0 ? "Events scheduled" : "No events"}</span>
+                <span>{events.length > 0 ? "Scheduled" : "None yet"}</span>
               </div>
             </CardContent>
           </Card>
-          
-          <Card 
-            variant="elevated" 
-            className="animate-fade-up animation-delay-200 cursor-pointer hover:shadow-lg transition-shadow"
+
+          <Card
+            variant="interactive"
+            className="animate-fade-up animation-delay-200 group"
             onClick={() => navigate("/messaging")}
           >
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Messages</p>
-                  <p className="text-2xl font-bold">{messages.length}</p>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center group-hover:bg-info/15 transition-colors">
                   <MessageSquare className="w-5 h-5 text-info" />
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
+              <p className="text-2xl font-bold">{messages.length}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Messages</p>
+              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
                 <Users className="w-3 h-3" />
-                <span>{messages.length > 0 ? "Active conversations" : "Start chatting"}</span>
+                <span>{messages.length > 0 ? "Active" : "Start chatting"}</span>
               </div>
             </CardContent>
           </Card>
-          
-          <Card 
-            variant="elevated" 
-            className="animate-fade-up animation-delay-300 cursor-pointer hover:shadow-lg transition-shadow"
-            onClick={() => navigate("/ai-assistant")}
+
+          <Card
+            variant="interactive"
+            className="animate-fade-up animation-delay-300 group"
+            onClick={() => navigate("/reports")}
           >
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">AI Assistant</p>
-                  <p className="text-2xl font-bold">Ready</p>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-primary-foreground" />
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center group-hover:bg-success/15 transition-colors">
+                  <BarChart3 className="w-5 h-5 text-success" />
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-2 text-sm text-primary">
-                <span>Ask anything</span>
+              <p className="text-2xl font-bold">
+                {tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}%
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Completion rate</p>
+              <div className="flex items-center gap-1 mt-2 text-xs text-primary">
+                <Zap className="w-3 h-3" />
+                <span>View reports</span>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* AI Daily Summary */}
-        <Card variant="feature" className="animate-fade-up animation-delay-400">
-          <CardHeader className="flex flex-row items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <CardTitle className="text-base">AI Assistant</CardTitle>
-              <p className="text-sm text-muted-foreground">Your intelligent workspace companion</p>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              {tasks.length === 0 && events.length === 0 
-                ? "Welcome! Start by creating tasks, scheduling events, or chatting with the AI assistant to get personalized insights about your productivity."
-                : `You have ${tasks.length - completedCount} active tasks and ${events.length} events scheduled. Ask me anything about your workspace!`
-              }
-            </p>
-            <Button variant="outline" size="sm" onClick={() => navigate("/ai-assistant")}>
-              Chat with AI
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Main Content Grid */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Today's Tasks */}
-          <Card className="animate-fade-up animation-delay-500">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Active Tasks</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/tasks")}>View All</Button>
+        {/* AI Daily Recap + AI Suggestions row */}
+        <div className="grid lg:grid-cols-5 gap-4 md:gap-6">
+          {/* Daily Recap - wider */}
+          <Card variant="feature" className="lg:col-span-3 animate-fade-up animation-delay-400 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+            <CardHeader className="flex flex-row items-start gap-3 relative z-10">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-base">Daily Recap</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">AI-generated summary of your day</p>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="relative z-10">
+              <div className="bg-secondary/40 rounded-xl p-4 mb-4 border border-border/30">
+                {tasks.length === 0 && events.length === 0 && messages.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Welcome to Taskora AI! Start by creating tasks, scheduling events, or chatting with your team. Your daily recap will appear here with AI-powered insights.
+                  </p>
+                ) : (
+                  <div className="space-y-2 text-sm">
+                    <p className="text-foreground">
+                      📊 You have <span className="font-semibold text-primary">{activeTasks.length} active tasks</span>
+                      {highPriorityTasks.length > 0 && (
+                        <>, with <span className="font-semibold text-destructive">{highPriorityTasks.length} high priority</span></>
+                      )}
+                      . {completedCount > 0 && <><span className="font-semibold text-success">{completedCount} tasks</span> completed so far.</>}
+                    </p>
+                    {events.length > 0 && (
+                      <p className="text-foreground">
+                        📅 <span className="font-semibold">{events.length} events</span> on your calendar.
+                      </p>
+                    )}
+                    {messages.length > 0 && (
+                      <p className="text-foreground">
+                        💬 <span className="font-semibold">{messages.length} messages</span> across your channels.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <Button variant="outline" size="sm" onClick={() => navigate("/ai-assistant")} className="gap-2">
+                <Bot className="w-4 h-4" />
+                Ask AI for details
+                <ArrowRight className="w-3 h-3" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* AI Suggestions */}
+          <Card className="lg:col-span-2 animate-fade-up animation-delay-500 overflow-hidden relative">
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-accent/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none" />
+            <CardHeader className="flex flex-row items-start gap-3 relative z-10">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-orange-400 flex items-center justify-center flex-shrink-0">
+                <Lightbulb className="w-5 h-5 text-accent-foreground" />
+              </div>
+              <div>
+                <CardTitle className="text-base">AI Suggestions</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">Recommended next actions</p>
+              </div>
+            </CardHeader>
+            <CardContent className="relative z-10 space-y-2.5">
+              {activeTasks.length === 0 ? (
+                <button
+                  onClick={() => navigate("/tasks")}
+                  className="w-full flex items-start gap-3 p-3 rounded-lg bg-secondary/40 hover:bg-secondary/60 transition-colors text-left border border-border/30"
+                >
+                  <Plus className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">Create your first task</p>
+                    <p className="text-xs text-muted-foreground">Get started with your productivity journey</p>
+                  </div>
+                </button>
+              ) : (
+                <>
+                  {highPriorityTasks.length > 0 && (
+                    <button
+                      onClick={() => navigate("/tasks")}
+                      className="w-full flex items-start gap-3 p-3 rounded-lg bg-destructive/5 hover:bg-destructive/10 transition-colors text-left border border-destructive/10"
+                    >
+                      <Zap className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">Focus on urgent tasks</p>
+                        <p className="text-xs text-muted-foreground">{highPriorityTasks.length} high-priority task{highPriorityTasks.length > 1 ? "s" : ""} need attention</p>
+                      </div>
+                    </button>
+                  )}
+                  {events.length === 0 && (
+                    <button
+                      onClick={() => navigate("/calendar")}
+                      className="w-full flex items-start gap-3 p-3 rounded-lg bg-secondary/40 hover:bg-secondary/60 transition-colors text-left border border-border/30"
+                    >
+                      <Calendar className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">Schedule your week</p>
+                        <p className="text-xs text-muted-foreground">Add events to stay organized</p>
+                      </div>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => navigate("/ai-assistant")}
+                    className="w-full flex items-start gap-3 p-3 rounded-lg bg-primary/5 hover:bg-primary/10 transition-colors text-left border border-primary/10"
+                  >
+                    <Bot className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium">Get AI productivity tips</p>
+                      <p className="text-xs text-muted-foreground">Let AI analyze your workflow</p>
+                    </div>
+                  </button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Task Overview + Events + Messages */}
+        <div className="grid lg:grid-cols-3 gap-4 md:gap-6">
+          {/* Task Overview */}
+          <Card className="animate-fade-up">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="w-4 h-4 text-primary" />
+                <CardTitle className="text-base">Task Overview</CardTitle>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/tasks")} className="text-xs">
+                View All
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-2">
               {todaysTasks.length === 0 ? (
                 <div className="text-center py-8">
-                  <CheckSquare className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-sm text-muted-foreground mb-3">No active tasks</p>
+                  <CheckSquare className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
+                  <p className="text-sm text-muted-foreground mb-3">All caught up!</p>
                   <Button variant="outline" size="sm" onClick={() => navigate("/tasks")}>
                     <Plus className="w-4 h-4 mr-1" />
-                    Create Task
+                    New Task
                   </Button>
                 </div>
               ) : (
                 todaysTasks.map((task) => (
-                  <div 
-                    key={task.id} 
-                    className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer group"
                     onClick={() => navigate("/tasks")}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{task.title}</p>
+                      <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{task.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(task.created_at), "MMM d")}
+                        {task.due_date
+                          ? isToday(new Date(task.due_date))
+                            ? "Due today"
+                            : isTomorrow(new Date(task.due_date))
+                              ? "Due tomorrow"
+                              : format(new Date(task.due_date), "MMM d")
+                          : format(new Date(task.created_at), "MMM d")}
                       </p>
                     </div>
-                    <Badge 
-                      variant={
-                        task.priority === "high" ? "destructive" : 
-                        task.priority === "medium" ? "warning" : "ghost"
-                      }
+                    <Badge
+                      variant={task.priority === "high" ? "destructive" : task.priority === "medium" ? "warning" : "ghost"}
                     >
                       {task.priority}
                     </Badge>
@@ -212,16 +328,21 @@ export default function Dashboard() {
           </Card>
 
           {/* Upcoming Events */}
-          <Card className="animate-fade-up animation-delay-600">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Upcoming Events</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/calendar")}>View All</Button>
+          <Card className="animate-fade-up animation-delay-100">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-accent" />
+                <CardTitle className="text-base">Upcoming Events</CardTitle>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/calendar")} className="text-xs">
+                View All
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               {upcomingEvents.length === 0 ? (
                 <div className="text-center py-8">
-                  <Calendar className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-sm text-muted-foreground mb-3">No events scheduled</p>
+                  <Calendar className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
+                  <p className="text-sm text-muted-foreground mb-3">No upcoming events</p>
                   <Button variant="outline" size="sm" onClick={() => navigate("/calendar")}>
                     <Plus className="w-4 h-4 mr-1" />
                     Add Event
@@ -229,19 +350,19 @@ export default function Dashboard() {
                 </div>
               ) : (
                 upcomingEvents.map((event) => (
-                  <div 
-                    key={event.id} 
-                    className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
+                  <div
+                    key={event.id}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer group"
                     onClick={() => navigate("/calendar")}
                   >
-                    <div 
-                      className="w-10 h-10 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: `${event.color}20` }}
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: `${event.color || "hsl(var(--accent))"}20` }}
                     >
-                      <Calendar className="w-5 h-5" style={{ color: event.color }} />
+                      <Calendar className="w-4 h-4" style={{ color: event.color || "hsl(var(--accent))" }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{event.title}</p>
+                      <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{event.title}</p>
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(event.start_time), "MMM d, h:mm a")}
                       </p>
@@ -253,15 +374,20 @@ export default function Dashboard() {
           </Card>
 
           {/* Recent Messages */}
-          <Card className="animate-fade-up animation-delay-700">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Recent Messages</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/messaging")}>View All</Button>
+          <Card className="animate-fade-up animation-delay-200">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-info" />
+                <CardTitle className="text-base">Recent Messages</CardTitle>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/messaging")} className="text-xs">
+                View All
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               {recentMessages.length === 0 ? (
                 <div className="text-center py-8">
-                  <MessageSquare className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
+                  <MessageSquare className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
                   <p className="text-sm text-muted-foreground mb-3">No messages yet</p>
                   <Button variant="outline" size="sm" onClick={() => navigate("/messaging")}>
                     <Plus className="w-4 h-4 mr-1" />
@@ -270,19 +396,19 @@ export default function Dashboard() {
                 </div>
               ) : (
                 recentMessages.map((msg) => (
-                  <div 
-                    key={msg.id} 
-                    className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
+                  <div
+                    key={msg.id}
+                    className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer group"
                     onClick={() => navigate("/messaging")}
                   >
                     <div className="w-8 h-8 rounded-full bg-info/10 flex items-center justify-center flex-shrink-0">
-                      <MessageSquare className="w-4 h-4 text-info" />
+                      <MessageSquare className="w-3.5 h-3.5 text-info" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-primary">#{msg.channel}</p>
+                      <p className="text-xs font-semibold text-primary">#{msg.channel}</p>
                       <p className="text-sm text-muted-foreground truncate">{msg.content}</p>
                     </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap mt-0.5">
                       {format(new Date(msg.created_at), "h:mm a")}
                     </span>
                   </div>
