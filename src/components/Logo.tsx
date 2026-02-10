@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import taskoraLogo from "@/assets/taskora-logo.png";
+import taskoraIcon from "@/assets/taskora-icon.png";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg";
@@ -8,33 +8,29 @@ interface LogoProps {
 }
 
 export function Logo({ size = "md", showText = true, className }: LogoProps) {
-  const sizeClasses = {
-    sm: "h-6",
-    md: "h-8",
-    lg: "h-10",
-  };
-
-  const logoOnlySize = {
+  const iconSize = {
     sm: "h-6 w-6",
     md: "h-8 w-8",
     lg: "h-10 w-10",
   };
 
+  const textSize = {
+    sm: "text-sm",
+    md: "text-base",
+    lg: "text-lg",
+  };
+
   return (
-    <div className={cn("flex items-center", className)}>
-      {showText ? (
-        <img 
-          src={taskoraLogo} 
-          alt="Taskora AI" 
-          className={cn(sizeClasses[size], "w-auto object-contain")}
-        />
-      ) : (
-        <img 
-          src={taskoraLogo} 
-          alt="Taskora AI" 
-          className={cn(logoOnlySize[size], "object-cover object-left")}
-          style={{ clipPath: 'inset(0 60% 0 0)' }}
-        />
+    <div className={cn("flex items-center gap-2", className)}>
+      <img 
+        src={taskoraIcon} 
+        alt="Taskora AI" 
+        className={cn(iconSize[size], "object-contain rounded-lg")}
+      />
+      {showText && (
+        <span className={cn(textSize[size], "font-bold tracking-tight")}>
+          Taskora AI
+        </span>
       )}
     </div>
   );
